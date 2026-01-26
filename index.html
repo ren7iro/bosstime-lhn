@@ -48,7 +48,7 @@
   </div>
   <div id="boss-list"></div>
 
-  <script>
+<script>
     async function fetchBossData() {
       const res = await fetch('https://api.allorigins.win/raw?url=https://laghaimnew.com/MAIN_/cache/boss_spawn.json');
       const data = await res.json();
@@ -68,14 +68,19 @@
         const time = document.createElement('div');
         time.className = 'col-time';
         const gmtTime = new Date(boss.bosstime);
-        gmtTime.setHours(gmtTime.getHours() + 10); // Convert GMT-3 to GMT+7
+        gmtTime.setHours(gmtTime.getHours() + 10); 
         const now = new Date();
 
         if (gmtTime <= now) {
           time.textContent = 'spawn';
           time.classList.add('spawned');
         } else {
-          const timeStr = gmtTime.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+          // This line now ensures 24-hour formatting
+          const timeStr = gmtTime.toLocaleTimeString([], { 
+            hour: '2-digit', 
+            minute: '2-digit', 
+            hour12: false 
+          });
           time.textContent = timeStr;
         }
 
