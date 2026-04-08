@@ -11,6 +11,7 @@
             background-color: #ffffff;
             font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
             color: #000000;
+            user-select: none; /* Prevents text highlighting while tapping */
         }
 
         .container { 
@@ -19,23 +20,30 @@
             padding: 10px;
         }
         
-        .header-row, .row {
+        .header-row {
             display: grid;
             grid-template-columns: 1fr auto; 
             gap: 15px;
-            padding: 8px 0;
+            padding: 10px 0;
             align-items: center;
-        }
-
-        .header-row {
             border-bottom: 2px solid #000;
             font-weight: bold;
             text-transform: uppercase;
             font-size: 0.75rem;
-            margin-bottom: 5px;
+            position: sticky;
+            top: 0;
+            background: #fff;
+            z-index: 100;
         }
 
-        .row { border: none; }
+        .row {
+            display: grid;
+            grid-template-columns: 1fr auto; 
+            gap: 15px;
+            padding: 10px 0;
+            align-items: center;
+            border: none;
+        }
 
         .group-separator { 
             margin: 10px 0; 
@@ -46,41 +54,32 @@
         .col-name {
             font-size: 0.85rem;
             font-weight: normal;
+            pointer-events: none; /* Let the click pass to the row if needed */
         }
 
         .col-time { 
             text-align: right;
             font-size: 0.85rem;
-            min-width: 6.5rem; /* Wider to accommodate (i) and countdown */
-            font-weight: normal;
+            min-width: 6.5rem;
+            cursor: pointer;
             display: flex;
             justify-content: flex-end;
             align-items: center;
-            overflow: hidden;
+            -webkit-tap-highlight-color: transparent; /* Clean mobile tap */
         }
 
-        /* Container for the sliding text */
-        .time-wrapper {
-            display: inline-flex;
-            transition: transform 0.3s ease-in-out;
-            align-items: center;
-        }
-
-        /* The (i) button style */
         .info-btn {
-            font-size: 0.7rem;
+            font-size: 0.65rem;
             color: #007bff;
-            margin-left: 6px;
-            cursor: pointer;
-            font-style: italic;
+            margin-left: 8px;
             border: 1px solid #007bff;
             border-radius: 50%;
-            width: 14px;
-            height: 14px;
+            width: 16px;
+            height: 16px;
             display: inline-flex;
             align-items: center;
             justify-content: center;
-            flex-shrink: 0;
+            font-weight: bold;
         }
 
         .spawned { 
@@ -104,23 +103,9 @@
             width: 30px;
             height: 30px;
             animation: spin 1s linear infinite;
-            margin-bottom: 15px;
         }
 
-        @keyframes spin {
-            0% { transform: rotate(0deg); }
-            100% { transform: rotate(360deg); }
-        }
-
-        .retry-btn {
-            margin-top: 15px;
-            padding: 10px 20px;
-            background: #333;
-            color: #fff;
-            border: none;
-            border-radius: 5px;
-            cursor: pointer;
-        }
+        @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
 
         .timezone-note { font-size: 0.65rem; color: #aaa; margin-bottom: 5px; }
     </style>
@@ -129,23 +114,21 @@
 
 <div class="container">
     <div id="tz-display" class="timezone-note"></div>
-    <div id="main-content">
-        <div class="header-row">
-            <div class="col-name">boss name</div>
-            <div class="col-time">next spawn</div>
-        </div>
-        <div id="boss-list">
-            <div class="status-container">
-                <div class="loader"></div>
-                <div>please wait, i mai skil..</div>
-            </div>
+    <div class="header-row">
+        <div class="col-name">boss name</div>
+        <div class="col-time">next spawn</div>
+    </div>
+    <div id="boss-list">
+        <div class="status-container">
+            <div class="loader"></div>
+            <div style="margin-top:15px">please wait, i mai skil..</div>
         </div>
     </div>
 </div>
 
 <script>
     let bossData = []; 
-    let activeCountdowns = new Set(); // Tracks which bosses are showing countdown
+    let activeCountdowns = new Set();
 
     function getMapGroup(name) {
         const match = name.match(/^\[(\d{2})\]/);
@@ -159,44 +142,31 @@
             const proxyUrl = `https://api.allorigins.win/raw?url=${encodeURIComponent(targetUrl)}&t=${timestamp}`;
 
             const res = await fetch(proxyUrl, { cache: "no-store" });
-            if (!res.ok) throw new Error("Connection failed");
             const data = await res.json();
             
             bossData = Object.values(data).sort((a, b) => {
-                const groupA = getMapGroup(a.bossname);
-                const groupB = getMapGroup(b.bossname);
-                if (groupA !== groupB) {
-                    if (groupA === "Other") return 1;
-                    if (groupB === "Other") return -1;
-                    return groupA.localeCompare(groupB);
-                }
-                return a.bossname.localeCompare(b.bossname);
+                const gA = getMapGroup(a.bossname), gB = getMapGroup(b.bossname);
+                return gA !== gB ? (gA === "Other" ? 1 : gB === "Other" ? -1 : gA.localeCompare(gB)) : a.bossname.localeCompare(b.bossname);
             });
+            
             renderList();
         } catch (e) {
-            if (bossData.length === 0) {
-                document.getElementById('boss-list').innerHTML = `
-                    <div class="status-container">
-                        <div style="color: red; margin-bottom: 10px;">fail to load data</div>
-                        <button class="retry-btn" onclick="location.reload()">try again</button>
-                    </div>`;
-            }
+            console.error(e);
         }
     }
 
     function toggleView(bossName) {
-        if (activeCountdowns.has(bossName)) {
-            activeCountdowns.delete(bossName);
-        } else {
-            activeCountdowns.add(bossName);
-        }
+        if (activeCountdowns.has(bossName)) activeCountdowns.delete(bossName);
+        else activeCountdowns.add(bossName);
         renderList();
     }
 
     function renderList() {
         const container = document.getElementById('boss-list');
         const now = new Date();
-        container.innerHTML = '';
+        
+        // Use a document fragment to prevent the "jumpy" scroll behavior
+        const fragment = document.createDocumentFragment();
         let lastGroup = "";
 
         document.getElementById('tz-display').textContent = "TZ: " + Intl.DateTimeFormat().resolvedOptions().timeZone;
@@ -204,9 +174,9 @@
         bossData.forEach((boss, index) => {
             const currentGroup = getMapGroup(boss.bossname);
             if (index > 0 && currentGroup !== lastGroup) {
-                const separator = document.createElement('div');
-                separator.className = 'group-separator';
-                container.appendChild(separator);
+                const sep = document.createElement('div');
+                sep.className = 'group-separator';
+                fragment.appendChild(sep);
             }
             lastGroup = currentGroup;
 
@@ -222,36 +192,36 @@
 
             const timeCol = document.createElement('div');
             timeCol.className = 'col-time';
-
+            
             if (diff <= 0) {
                 timeCol.innerHTML = `<span class="spawned">alive</span>`;
             } else {
+                timeCol.onclick = () => toggleView(boss.bossname);
+                
                 if (activeCountdowns.has(boss.bossname)) {
-                    // Show Countdown
                     const h = Math.floor(diff / 3600000);
                     const m = Math.floor((diff % 3600000) / 60000);
                     const s = Math.floor((diff % 60000) / 1000);
-                    const cdText = `${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}`;
-                    
-                    timeCol.innerHTML = `<div onclick="toggleView('${boss.bossname}')">${cdText} <span class="info-btn">i</span></div>`;
+                    timeCol.innerHTML = `${String(h).padStart(2,'0')}:${String(m).padStart(2,'0')}:${String(s).padStart(2,'0')} <span class="info-btn">i</span>`;
                 } else {
-                    // Show Static Time
-                    let hh = String(spawnTime.getHours() % 24).padStart(2, '0');
-                    let mm = String(spawnTime.getMinutes()).padStart(2, '0');
-                    
-                    timeCol.innerHTML = `<div onclick="toggleView('${boss.bossname}')">${hh}:${mm} <span class="info-btn">i</span></div>`;
+                    const hh = String(spawnTime.getHours() % 24).padStart(2, '0');
+                    const mm = String(spawnTime.getMinutes()).padStart(2, '0');
+                    timeCol.innerHTML = `${hh}:${mm} <span class="info-btn">i</span>`;
                 }
             }
 
             row.appendChild(nameCol);
             row.appendChild(timeCol);
-            container.appendChild(row);
+            fragment.appendChild(row);
         });
+
+        container.innerHTML = '';
+        container.appendChild(fragment);
     }
 
     fetchBossData();
     setInterval(fetchBossData, 60000);
-    setInterval(renderList, 1000); // 1s refresh to keep countdown smooth
+    setInterval(renderList, 1000);
 </script>
 </body>
 </html>
