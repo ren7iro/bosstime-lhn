@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Boss Time | LHN</title>
+    <title>Boss Time | LHN Map Sort</title>
     <style>
         html, body {
             margin: 0;
@@ -24,20 +24,17 @@
         .row { display: grid; grid-template-columns: 1fr auto auto; padding: 4px 0; align-items: center; }
         .group-separator { margin: 15px 0; border-top: 1px solid #ccc; height: 0; }
         
-        /* Unified font styles for Time and Countdown */
         .col-time { 
             text-align: right; 
             width: 85px; 
             padding-right: 20px; 
             color: #7f8c8d; 
             font-size: 0.9em; 
-            font-weight: normal;
         }
         .col-countdown { 
             text-align: right; 
             width: 100px; 
-            font-size: 0.9em; /* Matches col-time */
-            font-weight: normal; 
+            font-size: 0.9em; 
             color: #000000;
         }
 
@@ -55,7 +52,7 @@
     </div>
     <div id="tz-display" class="timezone-note"></div>
     <div id="boss-list">
-        <div>Loading data, please wait..</div>
+        <div>Synchronizing...</div>
     </div>
 </div>
 
@@ -79,8 +76,16 @@
             bossData = Object.values(data).sort((a, b) => {
                 const groupA = getMapGroup(a.bossname);
                 const groupB = getMapGroup(b.bossname);
-                if (groupA !== groupB) return groupA.localeCompare(groupB);
-                return new Date(a.bosstime + "-03:00") - new Date(b.bosstime + "-03:00");
+
+                // 1. Sort by Map Index [xx]
+                if (groupA !== groupB) {
+                    if (groupA === "Other") return 1;
+                    if (groupB === "Other") return -1;
+                    return groupA.localeCompare(groupB);
+                }
+                
+                // 2. Sort by Boss Name alphabetically (removed spawn time sort)
+                return a.bossname.localeCompare(b.bossname);
             });
             
             renderList();
@@ -138,7 +143,7 @@
     }
 
     fetchBossData();
-    setInterval(fetchBossData, 10000);
+    setInterval(fetchBossData, 30000);
     setInterval(renderList, 1000);
 </script>
 </body>
