@@ -22,7 +22,7 @@
             display: grid;
             grid-template-columns: 1fr auto;
             padding: 10px 0;
-            border-bottom: 2px solid #000; /* Thicker header line */
+            border-bottom: 2px solid #000;
             margin-bottom: 10px;
         }
 
@@ -30,10 +30,8 @@
             display: grid;
             grid-template-columns: 1fr auto;
             padding: 4px 0;
-            /* Removed row border-bottom to stop the "cluttered" look */
         }
 
-        /* This is the clean separator between [xx] groups */
         .group-separator {
             margin: 15px 0;
             border-top: 1px solid #ccc; 
@@ -48,8 +46,9 @@
             text-align: right;
         }
 
+        /* Red color for alive status only */
         .spawned {
-            color: #000000;
+            color: #ff0000;
         }
 
         .loading-msg, .error-msg {
@@ -71,7 +70,6 @@
 
 <script>
     function getMapGroup(name) {
-        // Matches the first [xx] in the name
         const match = name.match(/^\[(\d{2})\]/);
         return match ? match[1] : "Other";
     }
@@ -88,17 +86,21 @@
             if (!res.ok) throw new Error('Offline');
             
             const data = await res.json();
+            const now = new Date();
             
             const bosses = Object.values(data).sort((a, b) => {
                 const groupA = getMapGroup(a.bossname);
                 const groupB = getMapGroup(b.bossname);
                 
+                // 1. Sort by Map Group first
                 if (groupA !== groupB) {
                     if (groupA === "Other") return 1;
                     if (groupB === "Other") return -1;
                     return groupA.localeCompare(groupB);
                 }
-                return a.bossname.localeCompare(b.bossname);
+
+                // 2. Sort by Spawn Time within that group
+                return new Date(a.bosstime) - new Date(b.bosstime);
             });
             
             container.innerHTML = '';
@@ -107,7 +109,6 @@
             bosses.forEach((boss, index) => {
                 const currentGroup = getMapGroup(boss.bossname);
 
-                // Add the separator line ONLY when moving to a NEW group
                 if (index > 0 && currentGroup !== lastGroup) {
                     const separator = document.createElement('div');
                     separator.className = 'group-separator';
@@ -127,16 +128,16 @@
                 
                 const spawnTime = new Date(boss.bosstime);
                 spawnTime.setHours(spawnTime.getHours() + 10); 
-                const now = new Date();
 
                 if (spawnTime <= now) {
                     timeCol.textContent = 'alive';
-                    timeCol.className = 'col-time spawned';
+                    timeCol.classList.add('spawned'); // This applies the red color
                 } else {
                     let hh = spawnTime.getHours() % 24;
                     let mm = spawnTime.getMinutes();
                     const timeStr = `${String(hh).padStart(2, '0')}:${String(mm).padStart(2, '0')}`;
                     timeCol.textContent = timeStr;
+                    timeCol.classList.remove('spawned');
                 }
 
                 row.appendChild(nameCol);
