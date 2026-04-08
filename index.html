@@ -5,14 +5,14 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Boss Time | LHN</title>
     <style>
-        /* Device-handled font scaling */
+        /* Scaling font based on device settings */
         html, body {
             margin: 0;
             padding: 1rem;
             background-color: #ffffff;
             font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
             color: #000000;
-            line-height: 1.4;
+            line-height: 1.5;
         }
 
         .container { 
@@ -20,12 +20,12 @@
             margin: 0;
         }
         
-        /* Layout Grid */
+        /* Two-column layout for maximum name space */
         .header-row, .row {
             display: grid;
-            grid-template-columns: 1fr auto auto; 
+            grid-template-columns: 1fr auto; 
             gap: 1rem;
-            padding: 0.4rem 0;
+            padding: 0.5rem 0;
             align-items: center;
         }
 
@@ -37,33 +37,26 @@
             margin-bottom: 0.5rem;
         }
 
-        /* Removed border-bottom from rows to keep it clean */
-        .row {
-            border: none; 
-        }
+        /* Clean list without lines between every boss */
+        .row { border: none; }
 
-        /* Keep line between groups only */
+        /* Line between map groups only */
         .group-separator { 
-            margin: 1rem 0; 
+            margin: 1.2rem 0; 
             border-top: 1px solid #ccc; 
             height: 0; 
         }
         
         .col-name {
             word-break: break-word;
+            padding-right: 10px;
         }
 
         .col-time { 
-            color: #7f8c8d; 
-            font-size: 0.85rem;
-            min-width: 3.5rem;
             text-align: right;
-        }
-
-        .col-countdown { 
-            font-size: 0.85rem;
-            min-width: 5.5rem;
-            text-align: right;
+            font-size: 0.9rem;
+            min-width: 4rem;
+            color: #000000;
         }
 
         .spawned { 
@@ -77,11 +70,9 @@
             margin-bottom: 0.5rem; 
         }
 
-        /* Mobile specific optimization */
         @media screen and (max-width: 400px) {
-            html, body { padding: 0.5rem; }
-            .header-row, .row { gap: 0.5rem; }
-            .col-countdown { min-width: 4.5rem; }
+            html, body { padding: 0.75rem; }
+            .col-name { font-size: 0.95rem; }
         }
     </style>
 </head>
@@ -91,8 +82,7 @@
     <div id="tz-display" class="timezone-note"></div>
     <div class="header-row">
         <div class="col-name">BOSS TIME | LHN</div>
-        <div class="col-time">TIME</div>
-        <div class="col-countdown">COUNTDOWN</div>
+        <div class="col-time">NEXT SPAWN</div>
     </div>
     <div id="boss-list">
         <div>Loading tracker...</div>
@@ -136,12 +126,11 @@
         container.innerHTML = '';
         let lastGroup = "";
 
-        document.getElementById('tz-display').textContent = "TZ: " + Intl.DateTimeFormat().resolvedOptions().timeZone;
+        document.getElementById('tz-display').textContent = "Device TZ: " + Intl.DateTimeFormat().resolvedOptions().timeZone;
 
         bossData.forEach((boss, index) => {
             const currentGroup = getMapGroup(boss.bossname);
             
-            // Separator only between groups
             if (index > 0 && currentGroup !== lastGroup) {
                 const separator = document.createElement('div');
                 separator.className = 'group-separator';
@@ -149,7 +138,6 @@
             }
             lastGroup = currentGroup;
 
-            // Server GMT-3 calculation
             const spawnTime = new Date(boss.bosstime + "-03:00");
             const diff = spawnTime - now;
 
@@ -162,33 +150,26 @@
 
             const timeCol = document.createElement('div');
             timeCol.className = 'col-time';
-            let hh = spawnTime.getHours() % 24;
-            let mm = spawnTime.getMinutes();
-            timeCol.textContent = `${String(hh).padStart(2, '0')}:${String(mm).padStart(2, '0')}`;
-
-            const countCol = document.createElement('div');
-            countCol.className = 'col-countdown';
 
             if (diff <= 0) {
-                countCol.textContent = 'alive';
-                countCol.classList.add('spawned');
+                timeCol.textContent = 'alive';
+                timeCol.classList.add('spawned');
             } else {
-                const h = Math.floor(diff / 3600000);
-                const m = Math.floor((diff % 3600000) / 60000);
-                const s = Math.floor((diff % 60000) / 1000);
-                countCol.textContent = `${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}`;
+                let hh = spawnTime.getHours() % 24;
+                let mm = spawnTime.getMinutes();
+                timeCol.textContent = `${String(hh).padStart(2, '0')}:${String(mm).padStart(2, '0')}`;
+                timeCol.classList.remove('spawned');
             }
 
             row.appendChild(nameCol);
             row.appendChild(timeCol);
-            row.appendChild(countCol);
             container.appendChild(row);
         });
     }
 
     fetchBossData();
-    setInterval(fetchBossData, 30000); // Server check
-    setInterval(renderList, 1000);    // Live countdown update
+    setInterval(fetchBossData, 30000); // Update from server every 30s
+    setInterval(renderList, 5000);    // Refresh "alive" status every 5s
 </script>
 </body>
 </html>
