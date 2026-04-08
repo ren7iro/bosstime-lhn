@@ -91,7 +91,7 @@
 <div class="container">
     <div class="header-row">
         <div class="col-name">Boss Name</div>
-        <div class="col-time">Next Spawn (24H)</div>
+        <div class="col-time">Next Spawn</div>
     </div>
     <div id="boss-list">
         <div class="loading-msg">Initializing full-screen data...</div>
@@ -134,12 +134,18 @@
                     time.textContent = 'alive';
                     time.classList.add('spawned');
                 } else {
-                    time.textContent = spawnTime.toLocaleTimeString([], { 
-                        hour: '2-digit', 
-                        minute: '2-digit', 
-                        hour12: false 
-                    });
-                }
+    // 1. Get the adjusted hours and minutes
+    let hh = spawnTime.getHours();
+    let mm = spawnTime.getMinutes();
+
+    // 2. The % 24 ensures that 24 becomes 00, 25 becomes 01, etc.
+    hh = hh % 24;
+
+    // 3. Format to 2-digits (adds a leading zero if needed)
+    const timeStr = `${String(hh).padStart(2, '0')}:${String(mm).padStart(2, '0')}`;
+    
+    time.textContent = timeStr;
+}
 
                 row.appendChild(name);
                 row.appendChild(time);
