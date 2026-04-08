@@ -13,7 +13,6 @@
             color: #000000;
         }
 
-        /* Full screen container */
         .container { 
             width: 100%;
             box-sizing: border-box;
@@ -32,7 +31,7 @@
             border-bottom: 2px solid #000;
             font-weight: bold;
             text-transform: uppercase;
-            font-size: 0.75rem; /* Smaller header font */
+            font-size: 0.75rem;
             margin-bottom: 5px;
         }
 
@@ -45,7 +44,7 @@
         }
         
         .col-name {
-            font-size: 0.85rem; /* Reduced font for mobile */
+            font-size: 0.85rem;
             font-weight: normal;
         }
 
@@ -53,7 +52,7 @@
             text-align: right;
             font-size: 0.85rem;
             min-width: 4.5rem;
-            font-weight: normal; /* No bold */
+            font-weight: normal;
         }
 
         .spawned { 
@@ -61,7 +60,6 @@
             font-weight: bold; 
         }
 
-        /* Loading Animation */
         .status-container {
             display: flex;
             flex-direction: column;
@@ -105,20 +103,20 @@
     <div id="tz-display" class="timezone-note"></div>
     <div id="main-content">
         <div class="header-row">
-            <div class="col-name">BOSS NAME</div>
-            <div class="col-time">NEXT SPAWN</div>
+            <div class="col-name">boss name</div>
+            <div class="col-time">next spawn</div>
         </div>
         <div id="boss-list">
             <div class="status-container">
                 <div class="loader"></div>
-                <div>Fetching Boss Data...</div>
+                <div>loading data, i mai skil..</div>
             </div>
         </div>
     </div>
 </div>
 
 <script>
-    let bossData = [];
+    let bossData = []; // This stores our data so it stays visible
 
     function getMapGroup(name) {
         const match = name.match(/^\[(\d{2})\]/);
@@ -127,16 +125,18 @@
 
     async function fetchBossData() {
         const listDiv = document.getElementById('boss-list');
+        
         try {
             const timestamp = new Date().getTime();
             const targetUrl = 'https://laghaimnew.com/MAIN_/cache/boss_spawn.json';
             const proxyUrl = `https://api.allorigins.win/raw?url=${encodeURIComponent(targetUrl)}&t=${timestamp}`;
 
             const res = await fetch(proxyUrl, { cache: "no-store" });
-            if (!res.ok) throw new Error();
+            if (!res.ok) throw new Error("Connection failed");
             
             const data = await res.json();
             
+            // Overwrite the bossData array with fresh data
             bossData = Object.values(data).sort((a, b) => {
                 const groupA = getMapGroup(a.bossname);
                 const groupB = getMapGroup(b.bossname);
@@ -147,14 +147,24 @@
                 }
                 return a.bossname.localeCompare(b.bossname);
             });
+
+            // Successful fetch, show the data
             renderList();
+
         } catch (e) {
-            listDiv.innerHTML = `
-                <div class="status-container">
-                    <div style="color: red; margin-bottom: 10px;">Failed to load data.</div>
-                    <div>Please refresh the page to retry.</div>
-                    <button class="retry-btn" onclick="location.reload()">Refresh Now</button>
-                </div>`;
+            console.error("Fetch Error:", e);
+            
+            // Only show error screen if we have NO data to display
+            if (bossData.length === 0) {
+                listDiv.innerHTML = `
+                    <div class="status-container">
+                        <div style="color: red; margin-bottom: 10px;">failed to load data</div>
+                        <div style="font-size: 0.8rem;">check your connection or retry</div>
+                        <button class="retry-btn" onclick="location.reload()">refresh now</button>
+                    </div>`;
+            }
+            // If bossData already has items, we do nothing (silent fail) 
+            // and the previous list stays visible to the user.
         }
     }
 
@@ -206,7 +216,7 @@
     }
 
     fetchBossData();
-    // Auto-refresh data every 60 seconds to keep the list updated
+    // Re-check the server every 60 seconds
     setInterval(fetchBossData, 60000);
 </script>
 </body>
