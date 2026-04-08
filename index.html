@@ -29,9 +29,6 @@
             grid-template-columns: 1fr auto;
             align-items: center;
             padding: 15px 30px;
-            background: #2c3e50;
-            color: #ecf0f1;
-            font-weight: bold;
             text-transform: uppercase;
             letter-spacing: 1px;
             position: sticky;
@@ -94,7 +91,7 @@
         <div class="col-time">Next Spawn</div>
     </div>
     <div id="boss-list">
-        <div class="loading-msg">Initializing full-screen data...</div>
+        <div class="loading-msg">Loading boss data, i mai skil..</div>
     </div>
 </div>
 
@@ -154,9 +151,9 @@
 
         } catch (error) {
             console.error('Fetch Error:', error);
-            if (container.innerHTML.includes('Initializing')) {
-                container.innerHTML = `<div class="error-msg">Failed to connect. Retrying...</div>`;
-            }
+            if (container.innerHTML.includes('Loading')) {
+    container.innerHTML = `<div class="error-msg">Failed to connect. Retrying...</div>`;
+}
         }
     }
 
