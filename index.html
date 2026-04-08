@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Boss Time | LHN</title>
+    <title>Boss Time | LHN Global</title>
     <style>
         html, body {
             margin: 0;
@@ -13,11 +13,7 @@
             font-size: 16px;
             color: #000000;
         }
-
-        .container {
-            width: 100%;
-        }
-
+        .container { width: 100%; }
         .header-row {
             display: grid;
             grid-template-columns: 1fr auto;
@@ -25,35 +21,11 @@
             border-bottom: 2px solid #000;
             margin-bottom: 10px;
         }
-
-        .row {
-            display: grid;
-            grid-template-columns: 1fr auto;
-            padding: 4px 0;
-        }
-
-        .group-separator {
-            margin: 15px 0;
-            border-top: 1px solid #ccc; 
-            height: 0;
-        }
-
-        .col-name, .col-time {
-            font-weight: normal;
-        }
-
-        .col-time {
-            text-align: right;
-        }
-
-        /* Red color for alive status only */
-        .spawned {
-            color: #ff0000;
-        }
-
-        .loading-msg, .error-msg {
-            padding: 20px 0;
-        }
+        .row { display: grid; grid-template-columns: 1fr auto; padding: 4px 0; }
+        .group-separator { margin: 15px 0; border-top: 1px solid #ccc; height: 0; }
+        .col-time { text-align: right; }
+        .spawned { color: #ff0000; }
+        .timezone-note { font-size: 12px; color: #7f8c8d; margin-bottom: 10px; }
     </style>
 </head>
 <body>
@@ -63,8 +35,9 @@
         <div class="col-name">Boss Name</div>
         <div class="col-time">Next Spawn</div>
     </div>
+    <div id="tz-info" class="timezone-note"></div>
     <div id="boss-list">
-        <div class="loading-msg">Loading...</div>
+        <div>Loading...</div>
     </div>
 </div>
 
@@ -74,33 +47,29 @@
         return match ? match[1] : "Other";
     }
 
+    // Display the detected timezone so your friend knows it's correct for them
+    document.getElementById('tz-info').textContent = "Auto-detected Timezone: " + Intl.DateTimeFormat().resolvedOptions().timeZone;
+
     async function fetchBossData() {
         const container = document.getElementById('boss-list');
-        
         try {
             const timestamp = new Date().getTime();
             const targetUrl = 'https://laghaimnew.com/MAIN_/cache/boss_spawn.json';
             const proxyUrl = `https://api.allorigins.win/raw?url=${encodeURIComponent(targetUrl)}&t=${timestamp}`;
 
             const res = await fetch(proxyUrl, { cache: "no-store" });
-            if (!res.ok) throw new Error('Offline');
-            
             const data = await res.json();
             const now = new Date();
             
             const bosses = Object.values(data).sort((a, b) => {
                 const groupA = getMapGroup(a.bossname);
                 const groupB = getMapGroup(b.bossname);
-                
-                // 1. Sort by Map Group first
                 if (groupA !== groupB) {
                     if (groupA === "Other") return 1;
                     if (groupB === "Other") return -1;
                     return groupA.localeCompare(groupB);
                 }
-
-                // 2. Sort by Spawn Time within that group
-                return new Date(a.bosstime) - new Date(b.bosstime);
+                return new Date(a.bosstime + " UTC") - new Date(b.bosstime + " UTC");
             });
             
             container.innerHTML = '';
@@ -108,7 +77,6 @@
 
             bosses.forEach((boss, index) => {
                 const currentGroup = getMapGroup(boss.bossname);
-
                 if (index > 0 && currentGroup !== lastGroup) {
                     const separator = document.createElement('div');
                     separator.className = 'group-separator';
@@ -116,46 +84,37 @@
                 }
                 lastGroup = currentGroup;
 
+                // Treat server time as UTC so it translates correctly to ANY user's local time
+                const spawnTime = new Date(boss.bosstime + " UTC"); 
+
                 const row = document.createElement('div');
                 row.className = 'row';
-
                 const nameCol = document.createElement('div');
-                nameCol.className = 'col-name';
                 nameCol.textContent = boss.bossname || 'Unknown';
-
                 const timeCol = document.createElement('div');
-                timeCol.className = 'col-time';
-                
-                const spawnTime = new Date(boss.bosstime);
-                spawnTime.setHours(spawnTime.getHours() + 10); 
 
                 if (spawnTime <= now) {
                     timeCol.textContent = 'alive';
-                    timeCol.classList.add('spawned'); // This applies the red color
+                    timeCol.className = 'col-time spawned';
                 } else {
-                    let hh = spawnTime.getHours() % 24;
-                    let mm = spawnTime.getMinutes();
-                    const timeStr = `${String(hh).padStart(2, '0')}:${String(mm).padStart(2, '0')}`;
-                    timeCol.textContent = timeStr;
-                    timeCol.classList.remove('spawned');
+                    // This automatically formats to 24h and local timezone
+                    timeCol.textContent = spawnTime.toLocaleTimeString([], { 
+                        hour: '2-digit', 
+                        minute: '2-digit', 
+                        hour12: false 
+                    });
+                    timeCol.className = 'col-time';
                 }
 
                 row.appendChild(nameCol);
                 row.appendChild(timeCol);
                 container.appendChild(row);
             });
-
-        } catch (error) {
-            console.error('Fetch Error:', error);
-            if (container.innerHTML.includes('Loading')) {
-                container.innerHTML = `<div>Connect error. Retrying...</div>`;
-            }
-        }
+        } catch (e) { console.error(e); }
     }
 
     fetchBossData();
     setInterval(fetchBossData, 10000);
 </script>
-
 </body>
 </html>
