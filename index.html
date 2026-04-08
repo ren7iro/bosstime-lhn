@@ -8,9 +8,10 @@
         body {
             margin: 0;
             padding: 10px;
-            font-family: -apple-system, sans-serif;
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
             user-select: none;
             -webkit-tap-highlight-color: transparent;
+            background-color: #fff;
         }
 
         .header-row {
@@ -35,25 +36,40 @@
             align-items: center;
         }
 
-        .group-separator { border-top: 1px solid #eee; margin: 8px 0; }
+        .group-separator { 
+            border-top: 1px solid #eee; 
+            margin: 8px 0; 
+        }
 
+        /* FIXED: This prevents the grid from resizing when switching modes */
         .col-time { 
             text-align: right; 
-            min-width: 5.5rem; 
+            min-width: 90px; 
+            display: flex;
+            justify-content: flex-end;
+            align-items: center;
             cursor: pointer; 
         }
 
-        /* The new light background for countdown */
+        /* STYLED: Light background with monospace font for stability */
         .countdown-mode { 
+            font-family: "Courier New", Courier, monospace;
+            font-weight: bold;
             font-style: italic; 
-            background-color: #f0f0f0; /* Light grey background */
+            background-color: #f0f0f0;
             padding: 4px 8px;
             border-radius: 4px;
             color: #333;
             display: inline-block;
+            font-size: 0.85rem;
+            letter-spacing: -0.5px;
         }
 
-        .spawned { color: #ff0000; font-weight: bold; font-style: normal; }
+        .spawned { 
+            color: #ff0000; 
+            font-weight: bold; 
+            font-style: normal; 
+        }
 
         .status-container {
             display: flex;
@@ -86,13 +102,14 @@
 <div id="boss-list">
     <div class="status-container">
         <div class="loader"></div>
-        <div>please wait, i mai skil..</div>
+        <div>checking boss data...</div>
     </div>
 </div>
 
 <script>
     let bossData = []; 
-    let activeCountdowns = new Set(JSON.parse(localStorage.getItem('boss_prefs') || '[]'));
+    // RESET: Always start with an empty set (no countdowns active) on refresh
+    let activeCountdowns = new Set(); 
     let isFetching = false;
 
     function getMapGroup(name) {
@@ -101,38 +118,40 @@
     }
 
     async function fetchBossData() {
-    if (isFetching) return; 
-    isFetching = true;
+        if (isFetching) return; 
+        isFetching = true;
 
-    const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), 10000);
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), 8000);
 
-    try {
-        // Your private Cloudflare worker link
-        const proxyUrl = "https://laghaim-proxy.launkk.workers.dev";
+        try {
+            // UPDATED: Using your private fast bridge in Singapore
+            const proxyUrl = "https://laghaim-proxy.launkk.workers.dev";
 
-        const res = await fetch(proxyUrl, { signal: controller.signal });
-        clearTimeout(timeoutId);
-        
-        const data = await res.json();
-        
-        bossData = Object.values(data).sort((a, b) => {
-            const gA = getMapGroup(a.bossname), gB = getMapGroup(b.bossname);
-            return gA !== gB ? (gA === "Other" ? 1 : gB === "Other" ? -1 : gA.localeCompare(gB)) : a.bossname.localeCompare(b.bossname);
-        });
-        
-        renderList();
-        isFetching = false;
-    } catch (e) {
-        isFetching = false;
-        console.log("Worker busy or timed out. Retrying...");
-        setTimeout(fetchBossData, 2000); 
+            const res = await fetch(proxyUrl, { signal: controller.signal });
+            clearTimeout(timeoutId);
+            const data = await res.json();
+            
+            bossData = Object.values(data).sort((a, b) => {
+                const gA = getMapGroup(a.bossname), gB = getMapGroup(b.bossname);
+                return gA !== gB ? (gA === "Other" ? 1 : gB === "Other" ? -1 : gA.localeCompare(gB)) : a.bossname.localeCompare(b.bossname);
+            });
+            
+            renderList();
+            isFetching = false;
+        } catch (e) {
+            isFetching = false;
+            console.log("Retrying fetch...");
+            setTimeout(fetchBossData, 3000); 
+        }
     }
-}
 
     function toggleView(bossName) {
-        activeCountdowns.has(bossName) ? activeCountdowns.delete(bossName) : activeCountdowns.add(bossName);
-        localStorage.setItem('boss_prefs', JSON.stringify([...activeCountdowns]));
+        if (activeCountdowns.has(bossName)) {
+            activeCountdowns.delete(bossName);
+        } else {
+            activeCountdowns.add(bossName);
+        }
         renderList();
     }
 
@@ -162,15 +181,18 @@
             timeCol.className = 'col-time';
             
             if (diff <= 0) {
-                timeCol.innerHTML = `<span class="spawned">alive</span>`;
+                timeCol.innerHTML = `<span class="spawned">ALIVE</span>`;
             } else {
                 timeCol.onclick = () => toggleView(boss.bossname);
                 if (activeCountdowns.has(boss.bossname)) {
-                    const h = Math.floor(diff / 3600000), m = Math.floor((diff % 3600000) / 60000), s = Math.floor((diff % 60000) / 1000);
+                    const h = Math.floor(diff / 3600000);
+                    const m = Math.floor((diff % 3600000) / 60000);
+                    const s = Math.floor((diff % 60000) / 1000);
                     const timeStr = `${String(h).padStart(2,'0')}:${String(m).padStart(2,'0')}:${String(s).padStart(2,'0')}`;
                     timeCol.innerHTML = `<span class="countdown-mode">${timeStr}</span>`;
                 } else {
-                    timeCol.innerHTML = `<span>${String(spawnTime.getHours() % 24).padStart(2, '0')}:${String(spawnTime.getMinutes()).padStart(2, '0')}</span>`;
+                    const timeStr = `${String(spawnTime.getHours() % 24).padStart(2, '0')}:${String(spawnTime.getMinutes()).padStart(2, '0')}`;
+                    timeCol.innerHTML = `<span>${timeStr}</span>`;
                 }
             }
 
@@ -183,9 +205,16 @@
         container.appendChild(fragment);
     }
 
+    // Initialize
     fetchBossData();
+    
+    // Refresh data every 1 minute
     setInterval(fetchBossData, 60000); 
+    
+    // Update the visual list every 1 second
     setInterval(renderList, 1000);
+
+    // Auto-refresh when user switches back to the tab
     document.addEventListener("visibilitychange", () => {
         if (document.visibilityState === 'visible') fetchBossData();
     });
