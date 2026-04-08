@@ -5,28 +5,18 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Boss Time | LHN</title>
     <style>
-        html, body {
+        body {
             margin: 0;
-            padding: 0;
-            background-color: #ffffff;
-            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
-            color: #000000;
+            padding: 10px;
+            font-family: -apple-system, sans-serif;
             user-select: none;
             -webkit-tap-highlight-color: transparent;
         }
 
-        .container { 
-            width: 100%;
-            box-sizing: border-box;
-            padding: 10px;
-        }
-        
         .header-row {
             display: grid;
             grid-template-columns: 1fr auto; 
-            gap: 15px;
             padding: 10px 0;
-            align-items: center;
             border-bottom: 2px solid #000;
             font-weight: bold;
             text-transform: uppercase;
@@ -34,45 +24,36 @@
             position: sticky;
             top: 0;
             background: #fff;
-            z-index: 100;
         }
 
         .row {
             display: grid;
             grid-template-columns: 1fr auto; 
-            gap: 15px;
             padding: 10px 0;
-            align-items: center;
+            font-size: 0.85rem;
         }
 
         .group-separator { 
-            margin: 10px 0; 
             border-top: 1px solid #eee; 
-            height: 0; 
+            margin: 10px 0; 
         }
-        
-        .col-name { font-size: 0.85rem; }
 
         .col-time { 
             text-align: right;
-            font-size: 0.85rem;
             min-width: 5.5rem;
             cursor: pointer;
-            display: flex;
-            justify-content: flex-end;
-            align-items: center;
         }
 
-        .countdown-mode { font-style: italic; color: #333; }
-        .spawned { color: #ff0000 !important; font-weight: bold; font-style: normal !important; }
+        .countdown-mode { font-style: italic; }
+        .spawned { color: #ff0000; font-weight: bold; font-style: normal; }
 
         .status-container {
             display: flex;
             flex-direction: column;
-            justify-content: center;
             align-items: center;
+            justify-content: center;
             height: 70vh;
-            text-align: center;
+            font-size: 0.8rem;
         }
 
         .loader {
@@ -82,45 +63,24 @@
             width: 24px;
             height: 24px;
             animation: spin 1s linear infinite;
+            margin-bottom: 10px;
         }
 
-        @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
-
-        .retry-btn {
-            padding: 10px 20px;
-            background: #333;
-            color: #fff;
-            border: none;
-            border-radius: 5px;
-            cursor: pointer;
-            font-size: 0.8rem;
-        }
-
-        .footer-note {
-            font-size: 0.6rem;
-            color: #bbb;
-            text-align: center;
-            margin-top: 20px;
-            padding-bottom: 20px;
-            text-transform: uppercase;
-        }
+        @keyframes spin { 100% { transform: rotate(360deg); } }
     </style>
 </head>
 <body>
 
-<div class="container">
-    <div id="tz-display" style="font-size: 0.65rem; color: #aaa; margin-bottom: 5px;"></div>
-    <div class="header-row">
-        <div class="col-name">boss name</div>
-        <div class="col-time">next spawn</div>
+<div class="header-row">
+    <div>boss name</div>
+    <div>next spawn</div>
+</div>
+
+<div id="boss-list">
+    <div class="status-container">
+        <div class="loader"></div>
+        <div>please wait, i mai skil..</div>
     </div>
-    <div id="boss-list">
-        <div class="status-container">
-            <div class="loader"></div>
-            <div style="margin-top:15px; font-size: 0.8rem;">please wait, i mai skil..</div>
-        </div>
-    </div>
-    <div id="update-time" class="footer-note"></div>
 </div>
 
 <script>
@@ -134,38 +94,23 @@
 
     async function fetchBossData() {
         try {
-            const timestamp = new Date().getTime();
+            const timestamp = Date.now();
             const targetUrl = 'https://laghaimnew.com/MAIN_/cache/boss_spawn.json';
             const proxyUrl = `https://api.allorigins.win/raw?url=${encodeURIComponent(targetUrl)}&t=${timestamp}`;
 
-            const res = await fetch(proxyUrl, { cache: "no-store" });
-            if (!res.ok) throw new Error("Network response was not ok");
-            
+            const res = await fetch(proxyUrl);
             const data = await res.json();
             
             bossData = Object.values(data).sort((a, b) => {
                 const gA = getMapGroup(a.bossname), gB = getMapGroup(b.bossname);
                 return gA !== gB ? (gA === "Other" ? 1 : gB === "Other" ? -1 : gA.localeCompare(gB)) : a.bossname.localeCompare(b.bossname);
             });
-            
-            document.getElementById('update-time').textContent = "Last Data Update: " + new Date().toLocaleTimeString();
             renderList();
-        } catch (e) { 
-            console.error("Update failed:", e);
-            if (bossData.length === 0) {
-                document.getElementById('boss-list').innerHTML = `
-                    <div class="status-container">
-                        <div style="color: red; margin-bottom: 10px; font-size: 0.9rem;">fail to load data</div>
-                        <button class="retry-btn" onclick="location.reload()">try again</button>
-                    </div>`;
-            }
-            document.getElementById('update-time').textContent = "Update Failed - Check Connection";
-        }
+        } catch (e) { console.error("Update failed."); }
     }
 
     function toggleView(bossName) {
-        if (activeCountdowns.has(bossName)) activeCountdowns.delete(bossName);
-        else activeCountdowns.add(bossName);
+        activeCountdowns.has(bossName) ? activeCountdowns.delete(bossName) : activeCountdowns.add(bossName);
         localStorage.setItem('boss_prefs', JSON.stringify([...activeCountdowns]));
         renderList();
     }
@@ -178,8 +123,6 @@
         const fragment = document.createDocumentFragment();
         let lastGroup = "";
 
-        document.getElementById('tz-display').textContent = "Device TZ: " + Intl.DateTimeFormat().resolvedOptions().timeZone;
-
         bossData.forEach((boss, index) => {
             const currentGroup = getMapGroup(boss.bossname);
             if (index > 0 && currentGroup !== lastGroup) {
@@ -191,13 +134,8 @@
 
             const spawnTime = new Date(boss.bosstime + "-03:00");
             const diff = spawnTime - now;
-
             const row = document.createElement('div');
             row.className = 'row';
-
-            const nameCol = document.createElement('div');
-            nameCol.className = 'col-name';
-            nameCol.textContent = boss.bossname;
 
             const timeCol = document.createElement('div');
             timeCol.className = 'col-time';
@@ -206,21 +144,17 @@
                 timeCol.innerHTML = `<span class="spawned">alive</span>`;
             } else {
                 timeCol.onclick = () => toggleView(boss.bossname);
-                
                 if (activeCountdowns.has(boss.bossname)) {
                     const h = Math.floor(diff / 3600000);
                     const m = Math.floor((diff % 3600000) / 60000);
                     const s = Math.floor((diff % 60000) / 1000);
-                    const cdText = `${String(h).padStart(2,'0')}:${String(m).padStart(2,'0')}:${String(s).padStart(2,'0')}`;
-                    timeCol.innerHTML = `<span class="countdown-mode">${cdText}</span>`;
+                    timeCol.innerHTML = `<span class="countdown-mode">${String(h).padStart(2,'0')}:${String(m).padStart(2,'0')}:${String(s).padStart(2,'0')}</span>`;
                 } else {
-                    const hh = String(spawnTime.getHours() % 24).padStart(2, '0');
-                    const mm = String(spawnTime.getMinutes()).padStart(2, '0');
-                    timeCol.innerHTML = `<span>${hh}:${mm}</span>`;
+                    timeCol.innerHTML = `<span>${String(spawnTime.getHours() % 24).padStart(2, '0')}:${String(spawnTime.getMinutes()).padStart(2, '0')}</span>`;
                 }
             }
 
-            row.appendChild(nameCol);
+            row.innerHTML = `<div>${boss.bossname}</div>`;
             row.appendChild(timeCol);
             fragment.appendChild(row);
         });
