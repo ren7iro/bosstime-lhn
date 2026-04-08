@@ -30,14 +30,29 @@
         .row {
             display: grid;
             grid-template-columns: 1fr auto; 
-            padding: 10px 0;
+            padding: 12px 0;
             font-size: 0.85rem;
+            align-items: center;
         }
 
-        .group-separator { border-top: 1px solid #eee; margin: 10px 0; }
+        .group-separator { border-top: 1px solid #eee; margin: 8px 0; }
 
-        .col-time { text-align: right; min-width: 5.5rem; cursor: pointer; }
-        .countdown-mode { font-style: italic; }
+        .col-time { 
+            text-align: right; 
+            min-width: 5.5rem; 
+            cursor: pointer; 
+        }
+
+        /* The new light background for countdown */
+        .countdown-mode { 
+            font-style: italic; 
+            background-color: #f0f0f0; /* Light grey background */
+            padding: 4px 8px;
+            border-radius: 4px;
+            color: #333;
+            display: inline-block;
+        }
+
         .spawned { color: #ff0000; font-weight: bold; font-style: normal; }
 
         .status-container {
@@ -90,12 +105,13 @@
         isFetching = true;
 
         const controller = new AbortController();
-        const timeoutId = setTimeout(() => controller.abort(), 10000); // 10s Timeout
+        const timeoutId = setTimeout(() => controller.abort(), 10000);
 
         try {
             const timestamp = Date.now();
             const targetUrl = 'https://laghaimnew.com/MAIN_/cache/boss_spawn.json';
-            const proxyUrl = `https://api.allorigins.win/raw?url=${encodeURIComponent(targetUrl)}&t=${timestamp}`;
+            // Switched to corsproxy.io for better stability
+            const proxyUrl = `https://corsproxy.io/?${encodeURIComponent(targetUrl + '?t=' + timestamp)}`;
 
             const res = await fetch(proxyUrl, { signal: controller.signal });
             clearTimeout(timeoutId);
@@ -110,8 +126,8 @@
             isFetching = false;
         } catch (e) {
             isFetching = false;
-            // Retry quickly if it fails to ensure "please wait" doesn't stay forever
-            setTimeout(fetchBossData, 2000); 
+            console.log("Fetch failed. Retrying...");
+            setTimeout(fetchBossData, 3000); 
         }
     }
 
@@ -152,7 +168,8 @@
                 timeCol.onclick = () => toggleView(boss.bossname);
                 if (activeCountdowns.has(boss.bossname)) {
                     const h = Math.floor(diff / 3600000), m = Math.floor((diff % 3600000) / 60000), s = Math.floor((diff % 60000) / 1000);
-                    timeCol.innerHTML = `<span class="countdown-mode">${String(h).padStart(2,'0')}:${String(m).padStart(2,'0')}:${String(s).padStart(2,'0')}</span>`;
+                    const timeStr = `${String(h).padStart(2,'0')}:${String(m).padStart(2,'0')}:${String(s).padStart(2,'0')}`;
+                    timeCol.innerHTML = `<span class="countdown-mode">${timeStr}</span>`;
                 } else {
                     timeCol.innerHTML = `<span>${String(spawnTime.getHours() % 24).padStart(2, '0')}:${String(spawnTime.getMinutes()).padStart(2, '0')}</span>`;
                 }
@@ -170,8 +187,6 @@
     fetchBossData();
     setInterval(fetchBossData, 60000); 
     setInterval(renderList, 1000);
-
-    // Refresh instantly when waking up phone/desktop
     document.addEventListener("visibilitychange", () => {
         if (document.visibilityState === 'visible') fetchBossData();
     });
