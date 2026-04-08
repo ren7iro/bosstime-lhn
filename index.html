@@ -1,75 +1,109 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>boss time | lhn</title>
-  <style>
-    body {
-      font-family: Arial, sans-serif;
-      padding: 20px;
-    }
-    .header-row, .row {
-      display: grid;
-      grid-template-columns: 1fr auto;
-      align-items: center;
-      gap: 10px;
-    }
-    .header-row {
-      font-weight: bold;
-      margin-bottom: 10px;
-    }
-    .row {
-      border-bottom: 1px solid #ccc;
-      padding: 6px 0;
-    }
-    .col-name {
-      word-break: break-word;
-    }
-    .col-time {
-      text-align: right;
-      white-space: nowrap;
-    }
-    .spawned {
-      color: green;
-      font-weight: bold;
-    }
-    @media (max-width: 600px) {
-      .header-row, .row {
-        grid-template-columns: 1fr auto;
-      }
-    }
-  </style>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Boss Time | LHN Realtime</title>
+    <style>
+        body {
+            font-family: 'Segoe UI', Arial, sans-serif;
+            padding: 20px;
+            background-color: #f4f4f9;
+            color: #333;
+        }
+        .container {
+            max-width: 600px;
+            margin: 0 auto;
+            background: #fff;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        .header-row, .row {
+            display: grid;
+            grid-template-columns: 1fr auto;
+            align-items: center;
+            gap: 10px;
+        }
+        .header-row {
+            font-weight: bold;
+            margin-bottom: 10px;
+            border-bottom: 2px solid #333;
+            padding-bottom: 5px;
+            text-transform: uppercase;
+            font-size: 0.9em;
+            color: #555;
+        }
+        .row {
+            border-bottom: 1px solid #eee;
+            padding: 10px 0;
+        }
+        .col-name {
+            word-break: break-word;
+            font-weight: 500;
+        }
+        .col-time {
+            text-align: right;
+            white-space: nowrap;
+            font-family: 'Courier New', Courier, monospace;
+            font-weight: bold;
+        }
+        .spawned {
+            color: #27ae60;
+            font-weight: bold;
+            animation: blink 1.5s infinite;
+        }
+        .error-msg {
+            color: #c0392b;
+            padding: 10px;
+            text-align: center;
+            font-size: 0.9em;
+        }
+        .loading-msg {
+            color: #7f8c8d;
+            padding: 10px;
+            text-align: center;
+        }
+        @keyframes blink {
+            0% { opacity: 1; }
+            50% { opacity: 0.5; }
+            100% { opacity: 1; }
+        }
+    </style>
 </head>
 <body>
-  <div class="header-row">
-    <div class="col-name">Boss Name:</div>
-    <div class="col-time">Next:</div>
-  </div>
-  <div id="boss-list"></div>
+
+<div class="container">
+    <div class="header-row">
+        <div class="col-name">Boss Name</div>
+        <div class="col-time">Next Spawn (24h)</div>
+    </div>
+    <div id="boss-list">
+        <div class="loading-msg">Initializing real-time data...</div>
+    </div>
+</div>
 
 <script>
     async function fetchBossData() {
         const container = document.getElementById('boss-list');
         
-        // Show loading message if empty
-        if (container.innerHTML === '') {
-            container.innerHTML = '<div style="padding:10px;">Loading boss data...</div>';
-        }
-
         try {
-            // Added a "cache buster" (?t=) to ensure fresh data every 10 seconds
-            const cacheBuster = new Date().getTime();
-            const targetUrl = encodeURIComponent('https://laghaimnew.com/MAIN_/cache/boss_spawn.json');
-            const proxyUrl = `https://api.allorigins.win/raw?url=${targetUrl}&cache=${cacheBuster}`;
+            // 1. Real-time Setup (Cache Buster + Proxy)
+            const timestamp = new Date().getTime();
+            const targetUrl = 'https://laghaimnew.com/MAIN_/cache/boss_spawn.json';
+            const proxyUrl = `https://api.allorigins.win/raw?url=${encodeURIComponent(targetUrl)}&t=${timestamp}`;
 
-            const res = await fetch(proxyUrl);
-            if (!res.ok) throw new Error('Network response was not ok');
+            // 2. Fetch with no-store policy
+            const res = await fetch(proxyUrl, { cache: "no-store" });
+            if (!res.ok) throw new Error('Proxy unreachable');
             
             const data = await res.json();
 
+            // 3. Process & Sort (Soonest spawn first)
             const bosses = Object.values(data).sort((a, b) => new Date(a.bosstime) - new Date(b.bosstime));
-            container.innerHTML = ''; // Clear loading message
+            
+            // Clear container for new data
+            container.innerHTML = '';
 
             bosses.forEach(boss => {
                 const row = document.createElement('div');
@@ -77,41 +111,48 @@
 
                 const name = document.createElement('div');
                 name.className = 'col-name';
-                name.textContent = boss.bossname || 'Unknown';
+                name.textContent = boss.bossname || 'Unknown Boss';
 
                 const time = document.createElement('div');
                 time.className = 'col-time';
-                const gmtTime = new Date(boss.bosstime);
-                gmtTime.setHours(gmtTime.getHours() + 10); // GMT-3 to GMT+7
+                
+                // 4. Time Logic (Adjusting GMT-3 to GMT+7)
+                const spawnTime = new Date(boss.bosstime);
+                spawnTime.setHours(spawnTime.getHours() + 10); 
                 const now = new Date();
 
-                if (gmtTime <= now) {
-                    time.textContent = 'spawn';
+                if (spawnTime <= now) {
+                    time.textContent = 'SPAWNED';
                     time.classList.add('spawned');
                 } else {
-                    // 24-hour format logic
-                    const timeStr = gmtTime.toLocaleTimeString([], { 
+                    // 5. Force 24-Hour Format
+                    time.textContent = spawnTime.toLocaleTimeString([], { 
                         hour: '2-digit', 
                         minute: '2-digit', 
                         hour12: false 
                     });
-                    time.textContent = timeStr;
                 }
 
                 row.appendChild(name);
                 row.appendChild(time);
                 container.appendChild(row);
             });
+
         } catch (error) {
-            console.error('Fetch error:', error);
-            container.innerHTML = `<div style="color:red; padding:10px;">Failed to load data. Retrying...</div>`;
+            console.error('Realtime Fetch Error:', error);
+            // Don't clear the list if we have old data, just show a small error if empty
+            if (container.innerHTML.includes('Initializing')) {
+                container.innerHTML = `<div class="error-msg">Failed to connect to server. Retrying...</div>`;
+            }
         }
     }
 
-    // Initial run
+    // Run immediately
     fetchBossData();
-    // Refresh every 10 seconds
+
+    // Refresh every 10 seconds for real-time accuracy
     setInterval(fetchBossData, 10000);
 </script>
+
 </body>
 </html>
