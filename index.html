@@ -15,15 +15,15 @@
 
         .container { 
             width: 100%;
-            padding: 12px;
             box-sizing: border-box;
+            padding: 10px;
         }
         
         .header-row, .row {
             display: grid;
             grid-template-columns: 1fr auto; 
-            gap: 12px;
-            padding: 10px 0;
+            gap: 15px;
+            padding: 8px 0;
             align-items: center;
         }
 
@@ -31,40 +31,33 @@
             border-bottom: 2px solid #000;
             font-weight: bold;
             text-transform: uppercase;
-            font-size: 0.7rem;
-            margin-bottom: 4px;
-            position: sticky;
-            top: 0;
-            background: white;
-            z-index: 10;
+            font-size: 0.75rem;
+            margin-bottom: 5px;
         }
 
         .row { border: none; }
 
         .group-separator { 
-            margin: 12px 0; 
-            border-top: 1px solid #eeeeee; 
+            margin: 10px 0; 
+            border-top: 1px solid #ddd; 
             height: 0; 
         }
         
         .col-name {
-            font-size: 0.8rem;
+            font-size: 0.85rem;
             font-weight: normal;
-            line-height: 1.2;
-            word-break: break-word;
         }
 
         .col-time { 
             text-align: right;
-            font-size: 0.8rem;
-            min-width: 4.2rem;
+            font-size: 0.85rem;
+            min-width: 4.5rem;
             font-weight: normal;
-            color: #444;
         }
 
         .spawned { 
             color: #ff0000 !important; 
-            font-weight: bold !important; 
+            font-weight: bold; 
         }
 
         .status-container {
@@ -72,19 +65,18 @@
             flex-direction: column;
             justify-content: center;
             align-items: center;
-            height: 70vh;
+            height: 80vh;
             text-align: center;
-            padding: 20px;
         }
 
         .loader {
-            border: 3px solid #f3f3f3;
-            border-top: 3px solid #000;
+            border: 4px solid #f3f3f3;
+            border-top: 4px solid #333;
             border-radius: 50%;
-            width: 24px;
-            height: 24px;
+            width: 30px;
+            height: 30px;
             animation: spin 1s linear infinite;
-            margin-bottom: 12px;
+            margin-bottom: 15px;
         }
 
         @keyframes spin {
@@ -93,29 +85,16 @@
         }
 
         .retry-btn {
-            margin-top: 16px;
-            padding: 12px 24px;
-            background: #000;
+            margin-top: 15px;
+            padding: 10px 20px;
+            background: #333;
             color: #fff;
             border: none;
-            border-radius: 4px;
-            font-size: 0.8rem;
-            font-weight: bold;
+            border-radius: 5px;
             cursor: pointer;
         }
 
-        .auto-retry-text {
-            margin-top: 10px;
-            font-size: 0.75rem;
-            color: #888;
-        }
-
-        .timezone-note { 
-            font-size: 0.6rem; 
-            color: #bbbbbb; 
-            margin-bottom: 4px;
-            text-transform: uppercase;
-        }
+        .timezone-note { font-size: 0.65rem; color: #aaa; margin-bottom: 5px; }
     </style>
 </head>
 <body>
@@ -130,36 +109,18 @@
         <div id="boss-list">
             <div class="status-container">
                 <div class="loader"></div>
-                <div style="font-size: 0.8rem; color: #666;">please wait, i mai skil..</div>
+                <div>please wait, i mai skil..</div>
             </div>
         </div>
     </div>
 </div>
 
 <script>
-    let bossData = []; 
-    let isRetrying = false;
+    let bossData = []; // This stores our data so it stays visible
 
     function getMapGroup(name) {
         const match = name.match(/^\[(\d{2})\]/);
         return match ? match[1] : "Other";
-    }
-
-    function startAutoRetry(seconds) {
-        if (isRetrying) return; // Prevent multiple countdowns
-        isRetrying = true;
-
-        let timeLeft = seconds;
-        const countdown = setInterval(() => {
-            const timerSpan = document.getElementById('retry-timer');
-            timeLeft -= 1;
-            if (timerSpan) timerSpan.textContent = timeLeft;
-            
-            if (timeLeft <= 0) {
-                clearInterval(countdown);
-                location.reload();
-            }
-        }, 1000);
     }
 
     async function fetchBossData() {
@@ -175,6 +136,7 @@
             
             const data = await res.json();
             
+            // Overwrite the bossData array with fresh data
             bossData = Object.values(data).sort((a, b) => {
                 const groupA = getMapGroup(a.bossname);
                 const groupB = getMapGroup(b.bossname);
@@ -186,21 +148,22 @@
                 return a.bossname.localeCompare(b.bossname);
             });
 
+            // Successful fetch, show the data
             renderList();
 
         } catch (e) {
             console.error("Fetch Error:", e);
             
-            // If we have no data yet (initial load failed), show the retry UI
+            // Only show error screen if we have NO data to display
             if (bossData.length === 0) {
                 listDiv.innerHTML = `
                     <div class="status-container">
-                        <div style="color: red; font-size: 0.9rem; margin-bottom: 8px;">fail to load data</div>
+                        <div style="color: red; margin-bottom: 10px;">fail to load data</div>
                         <button class="retry-btn" onclick="location.reload()">try again</button>
-                        <div class="auto-retry-text">or wait <span id="retry-timer">5</span> second..</div>
                     </div>`;
-                startAutoRetry(5);
             }
+            // If bossData already has items, we do nothing (silent fail) 
+            // and the previous list stays visible to the user.
         }
     }
 
@@ -252,8 +215,8 @@
     }
 
     fetchBossData();
-    setInterval(fetchBossData, 60000); // Check server every 1 min
-    setInterval(renderList, 5000);    // Update "alive" status every 5 sec
+    // Re-check the server every 60 seconds
+    setInterval(fetchBossData, 60000);
 </script>
 </body>
 </html>
