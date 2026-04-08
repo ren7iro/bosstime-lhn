@@ -67,7 +67,7 @@
 
         .spawned { 
             color: #ff0000; 
-            font-weight: bold; 
+            font-weight: normal; 
             font-style: normal; 
         }
 
@@ -96,7 +96,7 @@
 
 <div class="header-row">
     <div>boss name</div>
-    <div>next spawn</div>
+    <div>spawn time</div>
 </div>
 
 <div id="boss-list">
@@ -181,7 +181,7 @@
             timeCol.className = 'col-time';
             
             if (diff <= 0) {
-                timeCol.innerHTML = `<span class="spawned">ALIVE</span>`;
+                timeCol.innerHTML = `<span class="spawned">alive</span>`;
             } else {
                 timeCol.onclick = () => toggleView(boss.bossname);
                 if (activeCountdowns.has(boss.bossname)) {
