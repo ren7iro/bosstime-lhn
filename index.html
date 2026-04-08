@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Boss Time | LHN Map Sort</title>
+    <title>Boss Time | LHN</title>
     <style>
         html, body {
             margin: 0;
@@ -77,14 +77,11 @@
                 const groupA = getMapGroup(a.bossname);
                 const groupB = getMapGroup(b.bossname);
 
-                // 1. Sort by Map Index [xx]
                 if (groupA !== groupB) {
                     if (groupA === "Other") return 1;
                     if (groupB === "Other") return -1;
                     return groupA.localeCompare(groupB);
                 }
-                
-                // 2. Sort by Boss Name alphabetically (removed spawn time sort)
                 return a.bossname.localeCompare(b.bossname);
             });
             
@@ -109,6 +106,7 @@
             }
             lastGroup = currentGroup;
 
+            // Treat as GMT-3 (Server Time)
             const spawnTime = new Date(boss.bosstime + "-03:00");
             const diff = spawnTime - now;
 
@@ -120,7 +118,11 @@
 
             const timeCol = document.createElement('div');
             timeCol.className = 'col-time';
-            timeCol.textContent = spawnTime.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: false });
+            
+            // Fix: Manual 24h reset logic using modulo operator
+            let hh = spawnTime.getHours() % 24;
+            let mm = spawnTime.getMinutes();
+            timeCol.textContent = `${String(hh).padStart(2, '0')}:${String(mm).padStart(2, '0')}`;
 
             const countCol = document.createElement('div');
             countCol.className = 'col-countdown';
