@@ -51,8 +51,36 @@
         .col-time { 
             text-align: right;
             font-size: 0.85rem;
-            min-width: 4.5rem;
+            min-width: 6.5rem; /* Wider to accommodate (i) and countdown */
             font-weight: normal;
+            display: flex;
+            justify-content: flex-end;
+            align-items: center;
+            overflow: hidden;
+        }
+
+        /* Container for the sliding text */
+        .time-wrapper {
+            display: inline-flex;
+            transition: transform 0.3s ease-in-out;
+            align-items: center;
+        }
+
+        /* The (i) button style */
+        .info-btn {
+            font-size: 0.7rem;
+            color: #007bff;
+            margin-left: 6px;
+            cursor: pointer;
+            font-style: italic;
+            border: 1px solid #007bff;
+            border-radius: 50%;
+            width: 14px;
+            height: 14px;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            flex-shrink: 0;
         }
 
         .spawned { 
@@ -116,7 +144,8 @@
 </div>
 
 <script>
-    let bossData = []; // This stores our data so it stays visible
+    let bossData = []; 
+    let activeCountdowns = new Set(); // Tracks which bosses are showing countdown
 
     function getMapGroup(name) {
         const match = name.match(/^\[(\d{2})\]/);
@@ -124,8 +153,6 @@
     }
 
     async function fetchBossData() {
-        const listDiv = document.getElementById('boss-list');
-        
         try {
             const timestamp = new Date().getTime();
             const targetUrl = 'https://laghaimnew.com/MAIN_/cache/boss_spawn.json';
@@ -133,10 +160,8 @@
 
             const res = await fetch(proxyUrl, { cache: "no-store" });
             if (!res.ok) throw new Error("Connection failed");
-            
             const data = await res.json();
             
-            // Overwrite the bossData array with fresh data
             bossData = Object.values(data).sort((a, b) => {
                 const groupA = getMapGroup(a.bossname);
                 const groupB = getMapGroup(b.bossname);
@@ -147,24 +172,25 @@
                 }
                 return a.bossname.localeCompare(b.bossname);
             });
-
-            // Successful fetch, show the data
             renderList();
-
         } catch (e) {
-            console.error("Fetch Error:", e);
-            
-            // Only show error screen if we have NO data to display
             if (bossData.length === 0) {
-                listDiv.innerHTML = `
+                document.getElementById('boss-list').innerHTML = `
                     <div class="status-container">
                         <div style="color: red; margin-bottom: 10px;">fail to load data</div>
                         <button class="retry-btn" onclick="location.reload()">try again</button>
                     </div>`;
             }
-            // If bossData already has items, we do nothing (silent fail) 
-            // and the previous list stays visible to the user.
         }
+    }
+
+    function toggleView(bossName) {
+        if (activeCountdowns.has(bossName)) {
+            activeCountdowns.delete(bossName);
+        } else {
+            activeCountdowns.add(bossName);
+        }
+        renderList();
     }
 
     function renderList() {
@@ -177,7 +203,6 @@
 
         bossData.forEach((boss, index) => {
             const currentGroup = getMapGroup(boss.bossname);
-            
             if (index > 0 && currentGroup !== lastGroup) {
                 const separator = document.createElement('div');
                 separator.className = 'group-separator';
@@ -199,13 +224,23 @@
             timeCol.className = 'col-time';
 
             if (diff <= 0) {
-                timeCol.textContent = 'alive';
-                timeCol.classList.add('spawned');
+                timeCol.innerHTML = `<span class="spawned">alive</span>`;
             } else {
-                let hh = spawnTime.getHours() % 24;
-                let mm = spawnTime.getMinutes();
-                timeCol.textContent = `${String(hh).padStart(2, '0')}:${String(mm).padStart(2, '0')}`;
-                timeCol.classList.remove('spawned');
+                if (activeCountdowns.has(boss.bossname)) {
+                    // Show Countdown
+                    const h = Math.floor(diff / 3600000);
+                    const m = Math.floor((diff % 3600000) / 60000);
+                    const s = Math.floor((diff % 60000) / 1000);
+                    const cdText = `${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}`;
+                    
+                    timeCol.innerHTML = `<div onclick="toggleView('${boss.bossname}')">${cdText} <span class="info-btn">i</span></div>`;
+                } else {
+                    // Show Static Time
+                    let hh = String(spawnTime.getHours() % 24).padStart(2, '0');
+                    let mm = String(spawnTime.getMinutes()).padStart(2, '0');
+                    
+                    timeCol.innerHTML = `<div onclick="toggleView('${boss.bossname}')">${hh}:${mm} <span class="info-btn">i</span></div>`;
+                }
             }
 
             row.appendChild(nameCol);
@@ -215,8 +250,8 @@
     }
 
     fetchBossData();
-    // Re-check the server every 60 seconds
     setInterval(fetchBossData, 60000);
+    setInterval(renderList, 1000); // 1s refresh to keep countdown smooth
 </script>
 </body>
 </html>
