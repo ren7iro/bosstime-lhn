@@ -33,10 +33,11 @@
             border-bottom: 1px solid #eee;
         }
 
-        /* Adds a gap between different map groups */
+        /* Group Separator: Thin grey line */
         .group-separator {
-            height: 20px;
-            border: none;
+            height: 10px;
+            margin-top: 10px;
+            border-top: 1px solid #ccc; /* Thin grey line */
         }
 
         .col-name, .col-time {
@@ -69,10 +70,9 @@
 </div>
 
 <script>
-    // Helper to extract the map prefix, e.g., "[23][610]" or "Shilon"
-    function getMapPrefix(name) {
-        const match = name.match(/^(\[[^\]]+\]\[[^\]]+\]|\[[^\]]+\]|[A-Za-z]+\s*:\s*|[A-Za-z]+\s*-\s*)/);
-        return match ? match[0] : "Other";
+    function getMapGroup(name) {
+        const match = name.match(/^\[(\d{2})\]/);
+        return match ? match[1] : "Other";
     }
 
     async function fetchBossData() {
@@ -88,27 +88,31 @@
             
             const data = await res.json();
             
-            // Sort by Map Prefix first, then by Name
             const bosses = Object.values(data).sort((a, b) => {
-                const prefixA = getMapPrefix(a.bossname);
-                const prefixB = getMapPrefix(b.bossname);
-                if (prefixA !== prefixB) return prefixA.localeCompare(prefixB);
+                const groupA = getMapGroup(a.bossname);
+                const groupB = getMapGroup(b.bossname);
+                
+                if (groupA !== groupB) {
+                    if (groupA === "Other") return 1;
+                    if (groupB === "Other") return -1;
+                    return groupA.localeCompare(groupB);
+                }
                 return a.bossname.localeCompare(b.bossname);
             });
             
             container.innerHTML = '';
-            let lastPrefix = "";
+            let lastGroup = "";
 
             bosses.forEach((boss, index) => {
-                const currentPrefix = getMapPrefix(boss.bossname);
+                const currentGroup = getMapGroup(boss.bossname);
 
-                // Add space between different map groups
-                if (index > 0 && currentPrefix !== lastPrefix) {
-                    const spacer = document.createElement('div');
-                    spacer.className = 'group-separator';
-                    container.appendChild(spacer);
+                // Insert the thin grey line when the [xx] group changes
+                if (index > 0 && currentGroup !== lastGroup) {
+                    const separator = document.createElement('div');
+                    separator.className = 'group-separator';
+                    container.appendChild(separator);
                 }
-                lastPrefix = currentPrefix;
+                lastGroup = currentGroup;
 
                 const row = document.createElement('div');
                 row.className = 'row';
