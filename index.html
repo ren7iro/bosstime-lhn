@@ -51,32 +51,20 @@
             height: 0; 
         }
         
-        .col-name {
-            font-size: 0.85rem;
-            font-weight: normal;
-        }
+        .col-name { font-size: 0.85rem; }
 
         .col-time { 
             text-align: right;
             font-size: 0.85rem;
-            min-width: 5.5rem; /* Adjusted since (i) is gone */
+            min-width: 5.5rem;
             cursor: pointer;
             display: flex;
             justify-content: flex-end;
             align-items: center;
         }
 
-        /* Italicize the countdown specifically */
-        .countdown-mode {
-            font-style: italic;
-            color: #333;
-        }
-
-        .spawned { 
-            color: #ff0000 !important; 
-            font-weight: bold; 
-            font-style: normal !important; /* Keep 'alive' text upright */
-        }
+        .countdown-mode { font-style: italic; color: #333; }
+        .spawned { color: #ff0000 !important; font-weight: bold; font-style: normal !important; }
 
         .status-container {
             display: flex;
@@ -97,6 +85,16 @@
         }
 
         @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+
+        .retry-btn {
+            padding: 10px 20px;
+            background: #333;
+            color: #fff;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 0.8rem;
+        }
 
         .footer-note {
             font-size: 0.6rem;
@@ -141,6 +139,8 @@
             const proxyUrl = `https://api.allorigins.win/raw?url=${encodeURIComponent(targetUrl)}&t=${timestamp}`;
 
             const res = await fetch(proxyUrl, { cache: "no-store" });
+            if (!res.ok) throw new Error("Network response was not ok");
+            
             const data = await res.json();
             
             bossData = Object.values(data).sort((a, b) => {
@@ -150,13 +150,22 @@
             
             document.getElementById('update-time').textContent = "Last Data Update: " + new Date().toLocaleTimeString();
             renderList();
-        } catch (e) { console.error("Update failed."); }
+        } catch (e) { 
+            console.error("Update failed:", e);
+            if (bossData.length === 0) {
+                document.getElementById('boss-list').innerHTML = `
+                    <div class="status-container">
+                        <div style="color: red; margin-bottom: 10px; font-size: 0.9rem;">fail to load data</div>
+                        <button class="retry-btn" onclick="location.reload()">try again</button>
+                    </div>`;
+            }
+            document.getElementById('update-time').textContent = "Update Failed - Check Connection";
+        }
     }
 
     function toggleView(bossName) {
         if (activeCountdowns.has(bossName)) activeCountdowns.delete(bossName);
         else activeCountdowns.add(bossName);
-        
         localStorage.setItem('boss_prefs', JSON.stringify([...activeCountdowns]));
         renderList();
     }
@@ -202,7 +211,6 @@
                     const h = Math.floor(diff / 3600000);
                     const m = Math.floor((diff % 3600000) / 60000);
                     const s = Math.floor((diff % 60000) / 1000);
-                    // Added countdown-mode class for italics
                     const cdText = `${String(h).padStart(2,'0')}:${String(m).padStart(2,'0')}:${String(s).padStart(2,'0')}`;
                     timeCol.innerHTML = `<span class="countdown-mode">${cdText}</span>`;
                 } else {
