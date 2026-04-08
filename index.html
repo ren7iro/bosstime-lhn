@@ -5,78 +5,94 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Boss Time | LHN</title>
     <style>
+        /* Base setup for mobile full-screen */
         html, body {
             margin: 0;
             padding: 0;
             background-color: #ffffff;
-            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
             color: #000000;
+            -webkit-font-smoothing: antialiased;
         }
 
         .container { 
             width: 100%;
+            padding: 12px;
             box-sizing: border-box;
-            padding: 10px;
         }
         
+        /* Two-column grid layout */
         .header-row, .row {
             display: grid;
             grid-template-columns: 1fr auto; 
-            gap: 15px;
-            padding: 8px 0;
+            gap: 12px;
+            padding: 10px 0;
             align-items: center;
         }
 
+        /* Fixed Header */
         .header-row {
             border-bottom: 2px solid #000;
             font-weight: bold;
             text-transform: uppercase;
-            font-size: 0.75rem;
-            margin-bottom: 5px;
+            font-size: 0.7rem;
+            letter-spacing: 0.5px;
+            margin-bottom: 4px;
+            position: sticky;
+            top: 0;
+            background: white;
+            z-index: 10;
         }
 
         .row { border: none; }
 
+        /* Subtle separator between groups */
         .group-separator { 
-            margin: 10px 0; 
-            border-top: 1px solid #ddd; 
+            margin: 12px 0; 
+            border-top: 1px solid #eeeeee; 
             height: 0; 
         }
         
         .col-name {
-            font-size: 0.85rem;
+            font-size: 0.8rem; /* Smaller for better mobile fit */
             font-weight: normal;
+            line-height: 1.2;
+            word-break: break-word;
         }
 
         .col-time { 
             text-align: right;
-            font-size: 0.85rem;
-            min-width: 4.5rem;
+            font-size: 0.8rem;
+            min-width: 4.2rem;
             font-weight: normal;
+            color: #444;
         }
 
+        /* Alive Status */
         .spawned { 
             color: #ff0000 !important; 
-            font-weight: bold; 
+            font-weight: bold !important; 
         }
 
+        /* Full-screen Status Container (Loading/Error) */
         .status-container {
             display: flex;
             flex-direction: column;
             justify-content: center;
             align-items: center;
-            height: 80vh;
+            height: 70vh;
             text-align: center;
+            padding: 20px;
         }
 
         .loader {
-            border: 4px solid #f3f3f3;
-            border-top: 4px solid #333;
+            border: 3px solid #f3f3f3;
+            border-top: 3px solid #000;
             border-radius: 50%;
-            width: 30px;
-            height: 30px;
+            width: 24px;
+            height: 24px;
             animation: spin 1s linear infinite;
-            margin-bottom: 15px;
+            margin-bottom: 12px;
         }
 
         @keyframes spin {
@@ -85,16 +101,23 @@
         }
 
         .retry-btn {
-            margin-top: 15px;
-            padding: 10px 20px;
-            background: #333;
+            margin-top: 16px;
+            padding: 12px 24px;
+            background: #000;
             color: #fff;
             border: none;
-            border-radius: 5px;
+            border-radius: 4px;
+            font-size: 0.8rem;
+            font-weight: bold;
             cursor: pointer;
         }
 
-        .timezone-note { font-size: 0.65rem; color: #aaa; margin-bottom: 5px; }
+        .timezone-note { 
+            font-size: 0.6rem; 
+            color: #bbbbbb; 
+            margin-bottom: 4px;
+            text-transform: uppercase;
+        }
     </style>
 </head>
 <body>
@@ -109,14 +132,14 @@
         <div id="boss-list">
             <div class="status-container">
                 <div class="loader"></div>
-                <div>please wait, i mai skil..</div>
+                <div style="font-size: 0.8rem; color: #666;">please wait, i mai skil..</div>
             </div>
         </div>
     </div>
 </div>
 
 <script>
-    let bossData = []; // This stores our data so it stays visible
+    let bossData = []; 
 
     function getMapGroup(name) {
         const match = name.match(/^\[(\d{2})\]/);
@@ -136,7 +159,7 @@
             
             const data = await res.json();
             
-            // Overwrite the bossData array with fresh data
+            // Sort by map index first, then alphabetically
             bossData = Object.values(data).sort((a, b) => {
                 const groupA = getMapGroup(a.bossname);
                 const groupB = getMapGroup(b.bossname);
@@ -148,22 +171,21 @@
                 return a.bossname.localeCompare(b.bossname);
             });
 
-            // Successful fetch, show the data
             renderList();
 
         } catch (e) {
             console.error("Fetch Error:", e);
             
-            // Only show error screen if we have NO data to display
+            // Error handling: Only wipe screen if no existing data
             if (bossData.length === 0) {
                 listDiv.innerHTML = `
                     <div class="status-container">
-                        <div style="color: red; margin-bottom: 10px;">fail to load data</div>
+                        <div style="color: red; font-size: 0.9rem; margin-bottom: 8px;">fail to load data</div>
+                        <div style="font-size: 0.75rem; color: #666;">check connection</div>
                         <button class="retry-btn" onclick="location.reload()">try again</button>
                     </div>`;
             }
-            // If bossData already has items, we do nothing (silent fail) 
-            // and the previous list stays visible to the user.
+            // If we already have data, we just "fail silently" and keep showing it
         }
     }
 
@@ -173,11 +195,13 @@
         container.innerHTML = '';
         let lastGroup = "";
 
+        // Display current timezone for reference
         document.getElementById('tz-display').textContent = "TZ: " + Intl.DateTimeFormat().resolvedOptions().timeZone;
 
         bossData.forEach((boss, index) => {
             const currentGroup = getMapGroup(boss.bossname);
             
+            // Add spacing between different map groups
             if (index > 0 && currentGroup !== lastGroup) {
                 const separator = document.createElement('div');
                 separator.className = 'group-separator';
@@ -185,6 +209,7 @@
             }
             lastGroup = currentGroup;
 
+            // Treat server time as GMT-3
             const spawnTime = new Date(boss.bosstime + "-03:00");
             const diff = spawnTime - now;
 
@@ -214,9 +239,14 @@
         });
     }
 
+    // Run immediately
     fetchBossData();
-    // Re-check the server every 60 seconds
+
+    // Refresh data every 60 seconds (Silent background refresh)
     setInterval(fetchBossData, 60000);
+
+    // Refresh "alive" status locally every 5 seconds without hitting the server
+    setInterval(renderList, 5000);
 </script>
 </body>
 </html>
