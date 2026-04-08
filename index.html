@@ -101,35 +101,34 @@
     }
 
     async function fetchBossData() {
-        if (isFetching) return; 
-        isFetching = true;
+    if (isFetching) return; 
+    isFetching = true;
 
-        const controller = new AbortController();
-        const timeoutId = setTimeout(() => controller.abort(), 10000);
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 10000);
 
-        try {
-            const timestamp = Date.now();
-            const targetUrl = 'https://laghaimnew.com/MAIN_/cache/boss_spawn.json';
-            // Switched to corsproxy.io for better stability
-            const proxyUrl = `https://corsproxy.io/?${encodeURIComponent(targetUrl + '?t=' + timestamp)}`;
+    try {
+        // Your private Cloudflare worker link
+        const proxyUrl = "https://laghaim-proxy.launkk.workers.dev";
 
-            const res = await fetch(proxyUrl, { signal: controller.signal });
-            clearTimeout(timeoutId);
-            const data = await res.json();
-            
-            bossData = Object.values(data).sort((a, b) => {
-                const gA = getMapGroup(a.bossname), gB = getMapGroup(b.bossname);
-                return gA !== gB ? (gA === "Other" ? 1 : gB === "Other" ? -1 : gA.localeCompare(gB)) : a.bossname.localeCompare(b.bossname);
-            });
-            
-            renderList();
-            isFetching = false;
-        } catch (e) {
-            isFetching = false;
-            console.log("Fetch failed. Retrying...");
-            setTimeout(fetchBossData, 3000); 
-        }
+        const res = await fetch(proxyUrl, { signal: controller.signal });
+        clearTimeout(timeoutId);
+        
+        const data = await res.json();
+        
+        bossData = Object.values(data).sort((a, b) => {
+            const gA = getMapGroup(a.bossname), gB = getMapGroup(b.bossname);
+            return gA !== gB ? (gA === "Other" ? 1 : gB === "Other" ? -1 : gA.localeCompare(gB)) : a.bossname.localeCompare(b.bossname);
+        });
+        
+        renderList();
+        isFetching = false;
+    } catch (e) {
+        isFetching = false;
+        console.log("Worker busy or timed out. Retrying...");
+        setTimeout(fetchBossData, 2000); 
     }
+}
 
     function toggleView(bossName) {
         activeCountdowns.has(bossName) ? activeCountdowns.delete(bossName) : activeCountdowns.add(bossName);
