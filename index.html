@@ -109,7 +109,7 @@
         <div id="boss-list">
             <div class="status-container">
                 <div class="loader"></div>
-                <div>loading data, i mai skil..</div>
+                <div>please wait, i mai skil..</div>
             </div>
         </div>
     </div>
@@ -158,8 +158,8 @@
             if (bossData.length === 0) {
                 listDiv.innerHTML = `
                     <div class="status-container">
-                        <div style="color: red; margin-bottom: 10px;">i mai fail load data</div>
-                        <button class="retry-btn" onclick="location.reload()">refresh now</button>
+                        <div style="color: red; margin-bottom: 10px;">fail to load data</div>
+                        <button class="retry-btn" onclick="location.reload()">try again</button>
                     </div>`;
             }
             // If bossData already has items, we do nothing (silent fail) 
