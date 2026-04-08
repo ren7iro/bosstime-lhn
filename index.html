@@ -5,81 +5,52 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Boss Time | LHN</title>
     <style>
-        /* 1. Make the body fill the entire screen */
+        /* 1. Plain Layout */
         html, body {
-            height: 100%;
             margin: 0;
-            padding: 0;
+            padding: 20px;
             background-color: #ffffff;
-            font-family: 'Segoe UI', Arial, sans-serif;
-            overflow-x: hidden; /* Prevent horizontal scrolling */
+            font-family: Arial, sans-serif;
+            font-size: 16px;
+            color: #000000;
         }
 
-        /* 2. Remove max-width so it expands to the edges */
         .container {
             width: 100%;
-            min-height: 100vh;
-            display: flex;
-            flex-direction: column;
         }
 
-        /* 3. Adjust Header to span full width */
+        /* 2. Plain Header (No Style) */
         .header-row {
             display: grid;
             grid-template-columns: 1fr auto;
-            align-items: center;
-            padding: 15px 30px;
-            text-transform: uppercase;
-            letter-spacing: 1px;
-            position: sticky;
-            top: 0;
-            z-index: 10;
+            padding: 5px 0;
+            border-bottom: 1px solid #000;
+            margin-bottom: 10px;
         }
 
-        /* 4. Adjust Rows for full-screen readability */
+        /* 3. Plain Rows (No Bold, No Hover Background) */
         .row {
             display: grid;
             grid-template-columns: 1fr auto;
-            align-items: center;
-            padding: 12px 30px;
+            padding: 4px 0;
             border-bottom: 1px solid #eee;
-            transition: background 0.2s;
         }
 
-        .row:hover {
-            background-color: #f9f9f9;
-        }
-
-        .col-name {
-            font-size: 1.1em;
-            word-break: break-word;
-            font-weight: 500;
+        .col-name, .col-time {
+            font-weight: normal; /* Removes Bold */
         }
 
         .col-time {
             text-align: right;
-            white-space: nowrap;
-            font-family: 'Courier New', Courier, monospace;
-            font-weight: bold;
-            font-size: 1.2em;
         }
 
+        /* 4. No Animation for Alive Status */
         .spawned {
-            color: #27ae60;
-            animation: blink 1.5s infinite;
-        }
-
-        @keyframes blink {
-            0% { opacity: 1; }
-            50% { opacity: 0.4; }
-            100% { opacity: 1; }
+            color: #000000; /* Standard Black */
         }
 
         .loading-msg, .error-msg {
-            padding: 50px;
-            text-align: center;
-            font-size: 1.2em;
-            color: #7f8c8d;
+            padding: 20px 0;
         }
     </style>
 </head>
@@ -105,7 +76,7 @@
             const proxyUrl = `https://api.allorigins.win/raw?url=${encodeURIComponent(targetUrl)}&t=${timestamp}`;
 
             const res = await fetch(proxyUrl, { cache: "no-store" });
-            if (!res.ok) throw new Error('Proxy unreachable');
+            if (!res.ok) throw new Error('Offline');
             
             const data = await res.json();
             const bosses = Object.values(data).sort((a, b) => new Date(a.bosstime) - new Date(b.bosstime));
@@ -118,7 +89,7 @@
 
                 const name = document.createElement('div');
                 name.className = 'col-name';
-                name.textContent = boss.bossname || 'Unknown Boss';
+                name.textContent = boss.bossname || 'Unknown';
 
                 const time = document.createElement('div');
                 time.className = 'col-time';
@@ -129,20 +100,13 @@
 
                 if (spawnTime <= now) {
                     time.textContent = 'alive';
-                    time.classList.add('spawned');
+                    time.className = 'col-time spawned';
                 } else {
-    // 1. Get the adjusted hours and minutes
-    let hh = spawnTime.getHours();
-    let mm = spawnTime.getMinutes();
-
-    // 2. The % 24 ensures that 24 becomes 00, 25 becomes 01, etc.
-    hh = hh % 24;
-
-    // 3. Format to 2-digits (adds a leading zero if needed)
-    const timeStr = `${String(hh).padStart(2, '0')}:${String(mm).padStart(2, '0')}`;
-    
-    time.textContent = timeStr;
-}
+                    let hh = spawnTime.getHours() % 24;
+                    let mm = spawnTime.getMinutes();
+                    const timeStr = `${String(hh).padStart(2, '0')}:${String(mm).padStart(2, '0')}`;
+                    time.textContent = timeStr;
+                }
 
                 row.appendChild(name);
                 row.appendChild(time);
@@ -152,13 +116,13 @@
         } catch (error) {
             console.error('Fetch Error:', error);
             if (container.innerHTML.includes('Loading')) {
-    container.innerHTML = `<div class="error-msg">Failed to connect. Retrying...</div>`;
-}
+                container.innerHTML = `<div>Failed to load, Retrying..</div>`;
+            }
         }
     }
 
     fetchBossData();
-    setInterval(fetchBossData, 10000);
+    setInterval(fetchBossData, 5000);
 </script>
 
 </body>
