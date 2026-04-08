@@ -50,48 +50,68 @@
 
 <script>
     async function fetchBossData() {
-      const res = await fetch('https://api.allorigins.win/raw?url=https://laghaimnew.com/MAIN_/cache/boss_spawn.json');
-      const data = await res.json();
-
-      const bosses = Object.values(data).sort((a, b) => new Date(a.bosstime) - new Date(b.bosstime));
-      const container = document.getElementById('boss-list');
-      container.innerHTML = '';
-
-      bosses.forEach(boss => {
-        const row = document.createElement('div');
-        row.className = 'row';
-
-        const name = document.createElement('div');
-        name.className = 'col-name';
-        name.textContent = boss.bossname || 'Unknown';
-
-        const time = document.createElement('div');
-        time.className = 'col-time';
-        const gmtTime = new Date(boss.bosstime);
-        gmtTime.setHours(gmtTime.getHours() + 10); 
-        const now = new Date();
-
-        if (gmtTime <= now) {
-          time.textContent = 'spawn';
-          time.classList.add('spawned');
-        } else {
-          // This line now ensures 24-hour formatting
-          const timeStr = gmtTime.toLocaleTimeString([], { 
-            hour: '2-digit', 
-            minute: '2-digit', 
-            hour12: false 
-          });
-          time.textContent = timeStr;
+        const container = document.getElementById('boss-list');
+        
+        // Show loading message if empty
+        if (container.innerHTML === '') {
+            container.innerHTML = '<div style="padding:10px;">Loading boss data...</div>';
         }
 
-        row.appendChild(name);
-        row.appendChild(time);
-        container.appendChild(row);
-      });
+        try {
+            // Added a "cache buster" (?t=) to ensure fresh data every 10 seconds
+            const cacheBuster = new Date().getTime();
+            const targetUrl = encodeURIComponent('https://laghaimnew.com/MAIN_/cache/boss_spawn.json');
+            const proxyUrl = `https://api.allorigins.win/raw?url=${targetUrl}&cache=${cacheBuster}`;
+
+            const res = await fetch(proxyUrl);
+            if (!res.ok) throw new Error('Network response was not ok');
+            
+            const data = await res.json();
+
+            const bosses = Object.values(data).sort((a, b) => new Date(a.bosstime) - new Date(b.bosstime));
+            container.innerHTML = ''; // Clear loading message
+
+            bosses.forEach(boss => {
+                const row = document.createElement('div');
+                row.className = 'row';
+
+                const name = document.createElement('div');
+                name.className = 'col-name';
+                name.textContent = boss.bossname || 'Unknown';
+
+                const time = document.createElement('div');
+                time.className = 'col-time';
+                const gmtTime = new Date(boss.bosstime);
+                gmtTime.setHours(gmtTime.getHours() + 10); // GMT-3 to GMT+7
+                const now = new Date();
+
+                if (gmtTime <= now) {
+                    time.textContent = 'spawn';
+                    time.classList.add('spawned');
+                } else {
+                    // 24-hour format logic
+                    const timeStr = gmtTime.toLocaleTimeString([], { 
+                        hour: '2-digit', 
+                        minute: '2-digit', 
+                        hour12: false 
+                    });
+                    time.textContent = timeStr;
+                }
+
+                row.appendChild(name);
+                row.appendChild(time);
+                container.appendChild(row);
+            });
+        } catch (error) {
+            console.error('Fetch error:', error);
+            container.innerHTML = `<div style="color:red; padding:10px;">Failed to load data. Retrying...</div>`;
+        }
     }
 
+    // Initial run
     fetchBossData();
+    // Refresh every 10 seconds
     setInterval(fetchBossData, 10000);
-  </script>
+</script>
 </body>
 </html>
