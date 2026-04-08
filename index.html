@@ -11,7 +11,8 @@
             background-color: #ffffff;
             font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
             color: #000000;
-            user-select: none; /* Prevents text highlighting while tapping */
+            user-select: none;
+            -webkit-tap-highlight-color: transparent;
         }
 
         .container { 
@@ -42,34 +43,31 @@
             gap: 15px;
             padding: 10px 0;
             align-items: center;
-            border: none;
         }
 
         .group-separator { 
             margin: 10px 0; 
-            border-top: 1px solid #ddd; 
+            border-top: 1px solid #eee; 
             height: 0; 
         }
         
         .col-name {
             font-size: 0.85rem;
             font-weight: normal;
-            pointer-events: none; /* Let the click pass to the row if needed */
         }
 
         .col-time { 
             text-align: right;
             font-size: 0.85rem;
-            min-width: 6.5rem;
+            min-width: 6.8rem;
             cursor: pointer;
             display: flex;
             justify-content: flex-end;
             align-items: center;
-            -webkit-tap-highlight-color: transparent; /* Clean mobile tap */
         }
 
         .info-btn {
-            font-size: 0.65rem;
+            font-size: 0.6rem;
             color: #007bff;
             margin-left: 8px;
             border: 1px solid #007bff;
@@ -80,6 +78,7 @@
             align-items: center;
             justify-content: center;
             font-weight: bold;
+            flex-shrink: 0;
         }
 
         .spawned { 
@@ -92,28 +91,35 @@
             flex-direction: column;
             justify-content: center;
             align-items: center;
-            height: 80vh;
+            height: 70vh;
             text-align: center;
         }
 
         .loader {
-            border: 4px solid #f3f3f3;
-            border-top: 4px solid #333;
+            border: 3px solid #f3f3f3;
+            border-top: 3px solid #333;
             border-radius: 50%;
-            width: 30px;
-            height: 30px;
+            width: 24px;
+            height: 24px;
             animation: spin 1s linear infinite;
         }
 
         @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
 
-        .timezone-note { font-size: 0.65rem; color: #aaa; margin-bottom: 5px; }
+        .footer-note {
+            font-size: 0.6rem;
+            color: #bbb;
+            text-align: center;
+            margin-top: 20px;
+            padding-bottom: 20px;
+            text-transform: uppercase;
+        }
     </style>
 </head>
 <body>
 
 <div class="container">
-    <div id="tz-display" class="timezone-note"></div>
+    <div id="tz-display" style="font-size: 0.65rem; color: #aaa; margin-bottom: 5px;"></div>
     <div class="header-row">
         <div class="col-name">boss name</div>
         <div class="col-time">next spawn</div>
@@ -121,14 +127,16 @@
     <div id="boss-list">
         <div class="status-container">
             <div class="loader"></div>
-            <div style="margin-top:15px">please wait, i mai skil..</div>
+            <div style="margin-top:15px; font-size: 0.8rem;">please wait, i mai skil..</div>
         </div>
     </div>
+    <div id="update-time" class="footer-note"></div>
 </div>
 
 <script>
     let bossData = []; 
-    let activeCountdowns = new Set();
+    // Load preferences from browser memory
+    let activeCountdowns = new Set(JSON.parse(localStorage.getItem('boss_prefs') || '[]'));
 
     function getMapGroup(name) {
         const match = name.match(/^\[(\d{2})\]/);
@@ -149,27 +157,29 @@
                 return gA !== gB ? (gA === "Other" ? 1 : gB === "Other" ? -1 : gA.localeCompare(gB)) : a.bossname.localeCompare(b.bossname);
             });
             
+            document.getElementById('update-time').textContent = "Last Data Update: " + new Date().toLocaleTimeString();
             renderList();
-        } catch (e) {
-            console.error(e);
-        }
+        } catch (e) { console.error("Update failed, keeping old data."); }
     }
 
     function toggleView(bossName) {
         if (activeCountdowns.has(bossName)) activeCountdowns.delete(bossName);
         else activeCountdowns.add(bossName);
+        
+        // Save preferences to memory
+        localStorage.setItem('boss_prefs', JSON.stringify([...activeCountdowns]));
         renderList();
     }
 
     function renderList() {
         const container = document.getElementById('boss-list');
+        if (!bossData.length) return;
+
         const now = new Date();
-        
-        // Use a document fragment to prevent the "jumpy" scroll behavior
         const fragment = document.createDocumentFragment();
         let lastGroup = "";
 
-        document.getElementById('tz-display').textContent = "TZ: " + Intl.DateTimeFormat().resolvedOptions().timeZone;
+        document.getElementById('tz-display').textContent = "Device TZ: " + Intl.DateTimeFormat().resolvedOptions().timeZone;
 
         bossData.forEach((boss, index) => {
             const currentGroup = getMapGroup(boss.bossname);
@@ -220,8 +230,8 @@
     }
 
     fetchBossData();
-    setInterval(fetchBossData, 60000);
-    setInterval(renderList, 1000);
+    setInterval(fetchBossData, 60000); // Fetch server data every 1 min
+    setInterval(renderList, 1000);    // Update countdown every 1 sec
 </script>
 </body>
 </html>
