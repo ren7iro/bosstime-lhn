@@ -5,27 +5,26 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Boss Time | LHN</title>
     <style>
-        /* Scaling font based on device settings */
         html, body {
             margin: 0;
-            padding: 1rem;
+            padding: 0;
             background-color: #ffffff;
             font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
             color: #000000;
-            line-height: 1.5;
         }
 
+        /* Full screen container */
         .container { 
-            width: 100%; 
-            margin: 0;
+            width: 100%;
+            box-sizing: border-box;
+            padding: 10px;
         }
         
-        /* Two-column layout for maximum name space */
         .header-row, .row {
             display: grid;
             grid-template-columns: 1fr auto; 
-            gap: 1rem;
-            padding: 0.5rem 0;
+            gap: 15px;
+            padding: 8px 0;
             align-items: center;
         }
 
@@ -33,30 +32,28 @@
             border-bottom: 2px solid #000;
             font-weight: bold;
             text-transform: uppercase;
-            font-size: 0.85rem;
-            margin-bottom: 0.5rem;
+            font-size: 0.75rem; /* Smaller header font */
+            margin-bottom: 5px;
         }
 
-        /* Clean list without lines between every boss */
         .row { border: none; }
 
-        /* Line between map groups only */
         .group-separator { 
-            margin: 1.2rem 0; 
-            border-top: 1px solid #ccc; 
+            margin: 10px 0; 
+            border-top: 1px solid #ddd; 
             height: 0; 
         }
         
         .col-name {
-            word-break: break-word;
-            padding-right: 10px;
+            font-size: 0.85rem; /* Reduced font for mobile */
+            font-weight: normal;
         }
 
         .col-time { 
             text-align: right;
-            font-size: 0.9rem;
-            min-width: 4rem;
-            color: #000000;
+            font-size: 0.85rem;
+            min-width: 4.5rem;
+            font-weight: normal; /* No bold */
         }
 
         .spawned { 
@@ -64,28 +61,59 @@
             font-weight: bold; 
         }
 
-        .timezone-note { 
-            font-size: 0.7rem; 
-            color: #999; 
-            margin-bottom: 0.5rem; 
+        /* Loading Animation */
+        .status-container {
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            height: 80vh;
+            text-align: center;
         }
 
-        @media screen and (max-width: 400px) {
-            html, body { padding: 0.75rem; }
-            .col-name { font-size: 0.95rem; }
+        .loader {
+            border: 4px solid #f3f3f3;
+            border-top: 4px solid #333;
+            border-radius: 50%;
+            width: 30px;
+            height: 30px;
+            animation: spin 1s linear infinite;
+            margin-bottom: 15px;
         }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        .retry-btn {
+            margin-top: 15px;
+            padding: 10px 20px;
+            background: #333;
+            color: #fff;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+        }
+
+        .timezone-note { font-size: 0.65rem; color: #aaa; margin-bottom: 5px; }
     </style>
 </head>
 <body>
 
 <div class="container">
     <div id="tz-display" class="timezone-note"></div>
-    <div class="header-row">
-        <div class="col-name">BOSS TIME | LHN</div>
-        <div class="col-time">NEXT SPAWN</div>
-    </div>
-    <div id="boss-list">
-        <div>Loading tracker...</div>
+    <div id="main-content">
+        <div class="header-row">
+            <div class="col-name">BOSS NAME</div>
+            <div class="col-time">NEXT SPAWN</div>
+        </div>
+        <div id="boss-list">
+            <div class="status-container">
+                <div class="loader"></div>
+                <div>Fetching Boss Data...</div>
+            </div>
+        </div>
     </div>
 </div>
 
@@ -98,12 +126,15 @@
     }
 
     async function fetchBossData() {
+        const listDiv = document.getElementById('boss-list');
         try {
             const timestamp = new Date().getTime();
             const targetUrl = 'https://laghaimnew.com/MAIN_/cache/boss_spawn.json';
             const proxyUrl = `https://api.allorigins.win/raw?url=${encodeURIComponent(targetUrl)}&t=${timestamp}`;
 
             const res = await fetch(proxyUrl, { cache: "no-store" });
+            if (!res.ok) throw new Error();
+            
             const data = await res.json();
             
             bossData = Object.values(data).sort((a, b) => {
@@ -117,7 +148,14 @@
                 return a.bossname.localeCompare(b.bossname);
             });
             renderList();
-        } catch (e) { console.error("Fetch error:", e); }
+        } catch (e) {
+            listDiv.innerHTML = `
+                <div class="status-container">
+                    <div style="color: red; margin-bottom: 10px;">Failed to load data.</div>
+                    <div>Please refresh the page to retry.</div>
+                    <button class="retry-btn" onclick="location.reload()">Refresh Now</button>
+                </div>`;
+        }
     }
 
     function renderList() {
@@ -126,7 +164,7 @@
         container.innerHTML = '';
         let lastGroup = "";
 
-        document.getElementById('tz-display').textContent = "Device TZ: " + Intl.DateTimeFormat().resolvedOptions().timeZone;
+        document.getElementById('tz-display').textContent = "TZ: " + Intl.DateTimeFormat().resolvedOptions().timeZone;
 
         bossData.forEach((boss, index) => {
             const currentGroup = getMapGroup(boss.bossname);
@@ -168,8 +206,8 @@
     }
 
     fetchBossData();
-    setInterval(fetchBossData, 30000); // Update from server every 30s
-    setInterval(renderList, 5000);    // Refresh "alive" status every 5s
+    // Auto-refresh data every 60 seconds to keep the list updated
+    setInterval(fetchBossData, 60000);
 </script>
 </body>
 </html>
