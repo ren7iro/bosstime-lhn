@@ -53,20 +53,27 @@
 
         .boss-meta {
             font-size: 0.72rem;
-            color: #666;
             text-transform: uppercase;
+        }
+
+        .meta-dead {
+            color: #666;
+        }
+
+        .meta-alive {
+            color: #008000;
+            font-weight: 500;
         }
 
         .col-time { 
             text-align: right; 
-            min-width: 105px; 
+            min-width: 95px; 
             display: flex;
             justify-content: flex-end;
             align-items: center;
-            cursor: pointer; 
         }
 
-        .countdown-mode { 
+        .countdown-text { 
             font-family: "Courier New", Courier, monospace;
             font-weight: bold;
             font-style: italic; 
@@ -79,24 +86,15 @@
             letter-spacing: -0.5px;
         }
 
-        .spawned-container {
-            display: flex;
-            flex-direction: column;
-            align-items: flex-end;
-            gap: 1px;
-        }
-
         .spawned { 
             color: #ff0000; 
             font-weight: bold; 
             text-transform: uppercase;
-            font-size: 0.8rem;
-        }
-
-        .spawned-ago {
-            font-size: 0.68rem;
-            color: #008000;
-            font-weight: 500;
+            font-size: 0.85rem;
+            background-color: #ffe6e6;
+            padding: 4px 10px;
+            border-radius: 4px;
+            border: 1px solid #ffb3b3;
         }
 
         .status-container {
@@ -124,22 +122,20 @@
 
 <div class="header-row">
     <div>boss name</div>
-    <div>spawn time / status</div>
+    <div>status</div>
 </div>
 
 <div id="boss-list">
     <div class="status-container">
         <div class="loader"></div>
-        <div>loading live dataset...</div>
+        <div>i mai skil, please wait..</div>
     </div>
 </div>
 
 <script>
-    // Configured directly to your live Cloudflare proxy
     const CLOUDFLARE_WORKER_URL = "https://laghaim-proxy.launkk.workers.dev";
 
     let bossData = []; 
-    let activeCountdowns = new Set(); 
     let isFetching = false;
 
     function getMapGroup(name) {
@@ -147,12 +143,19 @@
         return match ? match[1] : "Other";
     }
 
-    // Helper to turn absolute milliseconds into a readable hh:mm:ss string
-    function formatDuration(ms) {
+    // Handles full countdown string with seconds for dead items
+    function formatFullDuration(ms) {
         const h = Math.floor(ms / 3600000);
         const m = Math.floor((ms % 3600000) / 60000);
         const s = Math.floor((ms % 60000) / 1000);
         return `${String(h).padStart(2,'0')}:${String(m).padStart(2,'0')}:${String(s).padStart(2,'0')}`;
+    }
+
+    // FIXED: Formats elapsed time using ONLY hours and minutes (xx:xx)
+    function formatShortDuration(ms) {
+        const h = Math.floor(ms / 3600000);
+        const m = Math.floor((ms % 3600000) / 60000);
+        return `${String(h).padStart(2,'0')}:${String(m).padStart(2,'0')}`;
     }
 
     async function fetchBossData() {
@@ -161,7 +164,7 @@
 
         try {
             const res = await fetch(`${CLOUDFLARE_WORKER_URL}?t=${Date.now()}`);
-            if (!res.ok) throw new Error('Worker response rejection');
+            if (!res.ok) throw new Error('Worker communication failure');
             
             const data = await res.json();
             
@@ -177,15 +180,6 @@
             console.error("Sync interface error, retrying...", e);
             setTimeout(fetchBossData, 5000); 
         }
-    }
-
-    function toggleView(bossName) {
-        if (activeCountdowns.has(bossName)) {
-            activeCountdowns.delete(bossName);
-        } else {
-            activeCountdowns.add(bossName);
-        }
-        renderList();
     }
 
     function renderList() {
@@ -205,14 +199,12 @@
             }
             lastGroup = currentGroup;
 
-            // Handle server time zones cleanly (Server outputs in UTC-3 structure)
             const targetTime = new Date(boss.bosstime + "-03:00");
             const diff = targetTime - now;
 
             const row = document.createElement('div');
             row.className = 'row';
 
-            // Left Side text formatting
             const infoCol = document.createElement('div');
             infoCol.className = 'boss-info';
             
@@ -224,34 +216,26 @@
             const metaDiv = document.createElement('div');
             metaDiv.className = 'boss-meta';
             
-            const formattedTimeStr = `${String(targetTime.getHours()).padStart(2, '0')}:${String(targetTime.getMinutes()).padStart(2, '0')}`;
+            const timeStr = `${String(targetTime.getHours()).padStart(2, '0')}:${String(targetTime.getMinutes()).padStart(2, '0')}`;
             
             if (diff <= 0) {
-                metaDiv.textContent = `Born At: ${formattedTimeStr}`;
+                const elapsedMs = Math.abs(diff);
+                metaDiv.className = 'boss-meta meta-alive';
+                // FIXED: Now calls the truncated short duration formatting method (no seconds)
+                metaDiv.textContent = `Born ${formatShortDuration(elapsedMs)} ago`;
             } else {
-                metaDiv.textContent = `Estimated: ${formattedTimeStr}`;
+                metaDiv.className = 'boss-meta meta-dead';
+                metaDiv.textContent = `Next Spawn: ${timeStr}`;
             }
             infoCol.appendChild(metaDiv);
 
-            // Right Side timer formatting
             const timeCol = document.createElement('div');
             timeCol.className = 'col-time';
             
             if (diff <= 0) {
-                const elapsedMs = Math.abs(diff);
-                timeCol.innerHTML = `
-                    <div class="spawned-container">
-                        <span class="spawned">ALIVE</span>
-                        <span class="spawned-ago">Born ${formatDuration(elapsedMs)} ago</span>
-                    </div>
-                `;
+                timeCol.innerHTML = `<span class="spawned">ALIVE</span>`;
             } else {
-                timeCol.onclick = () => toggleView(boss.bossname);
-                if (activeCountdowns.has(boss.bossname)) {
-                    timeCol.innerHTML = `<span class="countdown-mode">${formatDuration(diff)}</span>`;
-                } else {
-                    timeCol.innerHTML = `<span>${formattedTimeStr}</span>`;
-                }
+                timeCol.innerHTML = `<span class="countdown-text">${formatFullDuration(diff)}</span>`;
             }
 
             row.appendChild(infoCol);
