@@ -43,7 +43,6 @@
             margin: 8px 0; 
         }
 
-        /* Clean, single-line left column */
         .boss-info {
             display: flex;
             align-items: center;
@@ -53,7 +52,6 @@
             font-weight: 500;
         }
 
-        /* Two-line stacked layout on the right */
         .col-time { 
             text-align: right; 
             min-width: 110px; 
@@ -68,19 +66,22 @@
             font-weight: bold;
         }
 
+        /* FIXED: Smaller text and italicized style for the lower tracking line */
         .right-bottom {
-            font-size: 0.75rem;
+            font-size: 0.70rem;
+            font-style: italic;
             text-transform: uppercase;
             letter-spacing: 0.2px;
         }
 
-        /* Color Themes */
+        /* Muted slate gray color rule for dead states */
         .color-dead {
             color: #666666;
         }
 
+        /* FIXED: Swapped color from red to clean green for active states */
         .color-alive {
-            color: #d32f2f;
+            color: #008000;
         }
 
         .status-container {
@@ -136,12 +137,6 @@
         return `${String(h).padStart(2,'0')}:${String(m).padStart(2,'0')}:${String(s).padStart(2,'0')}`;
     }
 
-    function formatShortDuration(ms) {
-        const h = Math.floor(ms / 3600000);
-        const m = Math.floor((ms % 3600000) / 60000);
-        return `${String(h).padStart(2,'0')}:${String(m).padStart(2,'0')}`;
-    }
-
     async function fetchBossData() {
         if (isFetching) return; 
         isFetching = true;
@@ -189,7 +184,6 @@
             const row = document.createElement('div');
             row.className = 'row';
 
-            // Left side stays strictly clean and simple
             const infoCol = document.createElement('div');
             infoCol.className = 'boss-info';
             
@@ -198,17 +192,17 @@
             nameDiv.textContent = boss.bossname;
             infoCol.appendChild(nameDiv);
 
-            // Right side container for two rows of dynamic information
             const timeCol = document.createElement('div');
             timeCol.className = 'col-time';
 
-if (diff <= 0) {
-    const elapsedMs = Math.abs(diff);
-    timeCol.innerHTML = `
-        <span class="right-top color-alive">ALIVE</span>
-        <span class="right-bottom color-alive">${formatFullDuration(elapsedMs)} ago</span>
-    `;
-} else {
+            if (diff <= 0) {
+                const elapsedMs = Math.abs(diff);
+                // FIXED: Uses full duration counter string with the green styling hook
+                timeCol.innerHTML = `
+                    <span class="right-top color-alive">ALIVE</span>
+                    <span class="right-bottom color-alive">${formatFullDuration(elapsedMs)} ago</span>
+                `;
+            } else {
                 const timeStr = `${String(targetTime.getHours()).padStart(2, '0')}:${String(targetTime.getMinutes()).padStart(2, '0')}`;
                 timeCol.innerHTML = `
                     <span class="right-top color-dead">${timeStr}</span>
