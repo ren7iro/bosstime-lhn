@@ -1,17 +1,134 @@
-async function fetchBossData() {
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Boss Time | LHN</title>
+    <style>
+        body {
+            margin: 0;
+            padding: 10px;
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+            user-select: none;
+            -webkit-tap-highlight-color: transparent;
+            background-color: #fff;
+        }
+
+        .header-row {
+            display: grid;
+            grid-template-columns: 1fr auto; 
+            padding: 10px 0;
+            border-bottom: 2px solid #000;
+            font-weight: bold;
+            text-transform: uppercase;
+            font-size: 0.75rem;
+            position: sticky;
+            top: 0;
+            background: #fff;
+            z-index: 100;
+        }
+
+        .row {
+            display: grid;
+            grid-template-columns: 1fr auto; 
+            padding: 12px 0;
+            font-size: 0.85rem;
+            align-items: center;
+        }
+
+        .group-separator { 
+            border-top: 1px solid #eee; 
+            margin: 8px 0; 
+        }
+
+        .col-time { 
+            text-align: right; 
+            min-width: 95px; 
+            display: flex;
+            justify-content: flex-end;
+            align-items: center;
+            cursor: pointer; 
+        }
+
+        .countdown-mode { 
+            font-family: "Courier New", Courier, monospace;
+            font-weight: bold;
+            font-style: italic; 
+            background-color: #f0f0f0;
+            padding: 4px 8px;
+            border-radius: 4px;
+            color: #333;
+            display: inline-block;
+            font-size: 0.85rem;
+            letter-spacing: -0.5px;
+        }
+
+        .spawned { 
+            color: #ff0000; 
+            font-weight: bold; 
+            text-transform: uppercase;
+        }
+
+        .status-container {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            height: 70vh;
+            font-size: 0.8rem;
+        }
+
+        .loader {
+            border: 3px solid #f3f3f3;
+            border-top: 3px solid #333;
+            border-radius: 50%;
+            width: 24px; height: 24px;
+            animation: spin 1s linear infinite;
+            margin-bottom: 10px;
+        }
+
+        @keyframes spin { 100% { transform: rotate(360deg); } }
+    </style>
+</head>
+<body>
+
+<div class="header-row">
+    <div>boss name</div>
+    <div>spawn time</div>
+</div>
+
+<div id="boss-list">
+    <div class="status-container">
+        <div class="loader"></div>
+        <div>loading live dataset...</div>
+    </div>
+</div>
+
+<script>
+    // CRITICAL CONFIGURATION: Change this URL to your live Cloudflare Worker address
+    const CLOUDFLARE_WORKER_URL = "https://laghaim-proxy.launkk.workers.dev";
+
+    let bossData = []; 
+    let activeCountdowns = new Set(); 
+    let isFetching = false;
+
+    function getMapGroup(name) {
+        const match = name.match(/^\[(\d{2})\]/);
+        return match ? match[1] : "Other";
+    }
+
+    async function fetchBossData() {
         if (isFetching) return; 
         isFetching = true;
 
         try {
-            // FIX: Pointing to the real dynamic PHP API endpoint you found
-            const target = "https://laghaimnew.com/MAIN_/api/boss_spawn.php";
-            const proxyUrl = `https://api.allorigins.win/raw?url=${encodeURIComponent(target)}&t=${Date.now()}`;
-
-            const res = await fetch(proxyUrl);
-            if (!res.ok) throw new Error('Network response fallback triggered');
+            // Append cache breaker to make sure Cloudflare always fetches fresh info
+            const res = await fetch(`${CLOUDFLARE_WORKER_URL}?t=${Date.now()}`);
+            if (!res.ok) throw new Error('Worker response rejection');
             
             const data = await res.json();
             
+            // Map JSON object to array and sort by map numbers cleanly
             bossData = Object.values(data).sort((a, b) => {
                 const gA = getMapGroup(a.bossname), gB = getMapGroup(b.bossname);
                 return gA !== gB ? (gA === "Other" ? 1 : gB === "Other" ? -1 : gA.localeCompare(gB)) : a.bossname.localeCompare(b.bossname);
@@ -21,23 +138,79 @@ async function fetchBossData() {
             isFetching = false;
         } catch (e) {
             isFetching = false;
-            console.error("Primary gateway blocked, trying fallback mirror...");
-            
-            // Fallback Layer: Try a different public cors proxy if AllOrigins throttles
-            try {
-                const fallbackTarget = "https://laghaimnew.com/MAIN_/api/boss_spawn.php";
-                const fallbackRes = await fetch(`https://corsproxy.io/?${encodeURIComponent(fallbackTarget)}`);
-                if (fallbackRes.ok) {
-                    const data = await fallbackRes.json();
-                    bossData = Object.values(data).sort((a, b) => {
-                        const gA = getMapGroup(a.bossname), gB = getMapGroup(b.bossname);
-                        return gA !== gB ? (gA === "Other" ? 1 : gB === "Other" ? -1 : gA.localeCompare(gB)) : a.bossname.localeCompare(b.bossname);
-                    });
-                    renderList();
-                }
-            } catch(err) {
-                console.log("Syncing clock with server...");
-            }
-            setTimeout(fetchBossData, 6000); 
+            console.error("Connection link down, attempting sync...", e);
+            setTimeout(fetchBossData, 5000); 
         }
     }
+
+    function toggleView(bossName) {
+        if (activeCountdowns.has(bossName)) {
+            activeCountdowns.delete(bossName);
+        } else {
+            activeCountdowns.add(bossName);
+        }
+        renderList();
+    }
+
+    function renderList() {
+        const container = document.getElementById('boss-list');
+        if (!bossData.length) return;
+
+        const now = new Date();
+        const fragment = document.createDocumentFragment();
+        let lastGroup = "";
+
+        bossData.forEach((boss, index) => {
+            const currentGroup = getMapGroup(boss.bossname);
+            if (index > 0 && currentGroup !== lastGroup) {
+                const sep = document.createElement('div');
+                sep.className = 'group-separator';
+                fragment.appendChild(sep);
+            }
+            lastGroup = currentGroup;
+
+            // Handle the UTC-3 time zone of the server response cleanly
+            const spawnTime = new Date(boss.bosstime + "-03:00");
+            const diff = spawnTime - now;
+            const row = document.createElement('div');
+            row.className = 'row';
+
+            const timeCol = document.createElement('div');
+            timeCol.className = 'col-time';
+            
+            if (diff <= 0) {
+                timeCol.innerHTML = `<span class="spawned">ALIVE</span>`;
+            } else {
+                timeCol.onclick = () => toggleView(boss.bossname);
+                if (activeCountdowns.has(boss.bossname)) {
+                    const h = Math.floor(diff / 3600000);
+                    const m = Math.floor((diff % 3600000) / 60000);
+                    const s = Math.floor((diff % 60000) / 1000);
+                    const timeStr = `${String(h).padStart(2,'0')}:${String(m).padStart(2,'0')}:${String(s).padStart(2,'0')}`;
+                    timeCol.innerHTML = `<span class="countdown-mode">${timeStr}</span>`;
+                } else {
+                    const timeStr = `${String(spawnTime.getHours() % 24).padStart(2, '0')}:${String(spawnTime.getMinutes()).padStart(2, '0')}`;
+                    timeCol.innerHTML = `<span>${timeStr}</span>`;
+                }
+            }
+
+            row.innerHTML = `<div>${boss.bossname}</div>`;
+            row.appendChild(timeCol);
+            fragment.appendChild(row);
+        });
+
+        container.innerHTML = '';
+        container.appendChild(fragment);
+    }
+
+    // Run functions on intervals to manage live countdown animations and updates
+    fetchBossData();
+    setInterval(fetchBossData, 30000); 
+    setInterval(renderList, 1000);
+
+    document.addEventListener("visibilitychange", () => {
+        if (document.visibilityState === 'visible') fetchBossData();
+    });
+</script>
+</body>
+</html>
