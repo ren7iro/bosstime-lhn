@@ -1,0 +1,24 @@
+name: Sync Boss Data
+on:
+  schedule:
+    - cron: '*/30 * * * *' # Runs automatically every 30 minutes
+  workflow_dispatch: # Lets you trigger it manually with a button click
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Repo
+        uses: actions/checkout@v3
+
+      - name: Download Data
+        run: |
+          curl -H "User-Agent: Mozilla/5.0 (Windows NT 10.0; Win64; x64)" https://laghaimnew.com/MAIN_/cache/boss_spawn.json -o boss_spawn.json
+
+      - name: Commit and Push Changes
+        run: |
+          git config --global user.name "BossRobot"
+          git config --global user.email "robot@github.com"
+          git add boss_spawn.json
+          git commit -m "Auto-update boss times" || exit 0
+          git push
