@@ -41,9 +41,25 @@
             margin: 8px 0; 
         }
 
+        .boss-info {
+            display: flex;
+            flex-direction: column;
+            gap: 2px;
+        }
+
+        .boss-name {
+            font-weight: 500;
+        }
+
+        .boss-meta {
+            font-size: 0.72rem;
+            color: #666;
+            text-transform: uppercase;
+        }
+
         .col-time { 
             text-align: right; 
-            min-width: 95px; 
+            min-width: 105px; 
             display: flex;
             justify-content: flex-end;
             align-items: center;
@@ -63,10 +79,24 @@
             letter-spacing: -0.5px;
         }
 
+        .spawned-container {
+            display: flex;
+            flex-direction: column;
+            align-items: flex-end;
+            gap: 1px;
+        }
+
         .spawned { 
             color: #ff0000; 
             font-weight: bold; 
             text-transform: uppercase;
+            font-size: 0.8rem;
+        }
+
+        .spawned-ago {
+            font-size: 0.68rem;
+            color: #008000;
+            font-weight: 500;
         }
 
         .status-container {
@@ -94,18 +124,18 @@
 
 <div class="header-row">
     <div>boss name</div>
-    <div>spawn time</div>
+    <div>spawn time / status</div>
 </div>
 
 <div id="boss-list">
     <div class="status-container">
         <div class="loader"></div>
-        <div>i mai skil, please wait..</div>
+        <div>loading live dataset...</div>
     </div>
 </div>
 
 <script>
-    // CRITICAL CONFIGURATION: Change this URL to your live Cloudflare Worker address
+    // Configured directly to your live Cloudflare proxy
     const CLOUDFLARE_WORKER_URL = "https://laghaim-proxy.launkk.workers.dev";
 
     let bossData = []; 
@@ -117,18 +147,24 @@
         return match ? match[1] : "Other";
     }
 
+    // Helper to turn absolute milliseconds into a readable hh:mm:ss string
+    function formatDuration(ms) {
+        const h = Math.floor(ms / 3600000);
+        const m = Math.floor((ms % 3600000) / 60000);
+        const s = Math.floor((ms % 60000) / 1000);
+        return `${String(h).padStart(2,'0')}:${String(m).padStart(2,'0')}:${String(s).padStart(2,'0')}`;
+    }
+
     async function fetchBossData() {
         if (isFetching) return; 
         isFetching = true;
 
         try {
-            // Append cache breaker to make sure Cloudflare always fetches fresh info
             const res = await fetch(`${CLOUDFLARE_WORKER_URL}?t=${Date.now()}`);
             if (!res.ok) throw new Error('Worker response rejection');
             
             const data = await res.json();
             
-            // Map JSON object to array and sort by map numbers cleanly
             bossData = Object.values(data).sort((a, b) => {
                 const gA = getMapGroup(a.bossname), gB = getMapGroup(b.bossname);
                 return gA !== gB ? (gA === "Other" ? 1 : gB === "Other" ? -1 : gA.localeCompare(gB)) : a.bossname.localeCompare(b.bossname);
@@ -138,7 +174,7 @@
             isFetching = false;
         } catch (e) {
             isFetching = false;
-            console.error("Connection link down, attempting sync...", e);
+            console.error("Sync interface error, retrying...", e);
             setTimeout(fetchBossData, 5000); 
         }
     }
@@ -169,32 +205,56 @@
             }
             lastGroup = currentGroup;
 
-            // Handle the UTC-3 time zone of the server response cleanly
-            const spawnTime = new Date(boss.bosstime + "-03:00");
-            const diff = spawnTime - now;
+            // Handle server time zones cleanly (Server outputs in UTC-3 structure)
+            const targetTime = new Date(boss.bosstime + "-03:00");
+            const diff = targetTime - now;
+
             const row = document.createElement('div');
             row.className = 'row';
 
+            // Left Side text formatting
+            const infoCol = document.createElement('div');
+            infoCol.className = 'boss-info';
+            
+            const nameDiv = document.createElement('div');
+            nameDiv.className = 'boss-name';
+            nameDiv.textContent = boss.bossname;
+            infoCol.appendChild(nameDiv);
+
+            const metaDiv = document.createElement('div');
+            metaDiv.className = 'boss-meta';
+            
+            const formattedTimeStr = `${String(targetTime.getHours()).padStart(2, '0')}:${String(targetTime.getMinutes()).padStart(2, '0')}`;
+            
+            if (diff <= 0) {
+                metaDiv.textContent = `Born At: ${formattedTimeStr}`;
+            } else {
+                metaDiv.textContent = `Estimated: ${formattedTimeStr}`;
+            }
+            infoCol.appendChild(metaDiv);
+
+            // Right Side timer formatting
             const timeCol = document.createElement('div');
             timeCol.className = 'col-time';
             
             if (diff <= 0) {
-                timeCol.innerHTML = `<span class="spawned">ALIVE</span>`;
+                const elapsedMs = Math.abs(diff);
+                timeCol.innerHTML = `
+                    <div class="spawned-container">
+                        <span class="spawned">ALIVE</span>
+                        <span class="spawned-ago">Born ${formatDuration(elapsedMs)} ago</span>
+                    </div>
+                `;
             } else {
                 timeCol.onclick = () => toggleView(boss.bossname);
                 if (activeCountdowns.has(boss.bossname)) {
-                    const h = Math.floor(diff / 3600000);
-                    const m = Math.floor((diff % 3600000) / 60000);
-                    const s = Math.floor((diff % 60000) / 1000);
-                    const timeStr = `${String(h).padStart(2,'0')}:${String(m).padStart(2,'0')}:${String(s).padStart(2,'0')}`;
-                    timeCol.innerHTML = `<span class="countdown-mode">${timeStr}</span>`;
+                    timeCol.innerHTML = `<span class="countdown-mode">${formatDuration(diff)}</span>`;
                 } else {
-                    const timeStr = `${String(spawnTime.getHours() % 24).padStart(2, '0')}:${String(spawnTime.getMinutes()).padStart(2, '0')}`;
-                    timeCol.innerHTML = `<span>${timeStr}</span>`;
+                    timeCol.innerHTML = `<span>${formattedTimeStr}</span>`;
                 }
             }
 
-            row.innerHTML = `<div>${boss.bossname}</div>`;
+            row.appendChild(infoCol);
             row.appendChild(timeCol);
             fragment.appendChild(row);
         });
@@ -203,7 +263,6 @@
         container.appendChild(fragment);
     }
 
-    // Run functions on intervals to manage live countdown animations and updates
     fetchBossData();
     setInterval(fetchBossData, 30000); 
     setInterval(renderList, 1000);
