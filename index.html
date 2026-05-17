@@ -119,9 +119,9 @@
         isFetching = true;
 
         try {
-            // Pulls directly from your repository with a cache breaker
-            const res = await fetch("./boss_spawn.json?t=" + Date.now());
-            if (!res.ok) throw new Error('Data not generated yet');
+            // FIX: Removed the "./" prefix and fixed the pathing string
+            const res = await fetch("boss_spawn.json?t=" + Date.now());
+            if (!res.ok) throw new Error('File read failed');
             
             const data = await res.json();
             
@@ -134,7 +134,21 @@
             isFetching = false;
         } catch (e) {
             isFetching = false;
-            console.log("Waiting for robot's first run...");
+            console.error("Database read error:", e);
+            // Fallback: Attempt an absolute lookup path if relative pathing acts up
+            try {
+                const fallbackRes = await fetch("/boss-ln/boss_spawn.json?t=" + Date.now());
+                if (fallbackRes.ok) {
+                    const fallbackData = await fallbackRes.json();
+                    bossData = Object.values(fallbackData).sort((a, b) => {
+                        const gA = getMapGroup(a.bossname), gB = getMapGroup(b.bossname);
+                        return gA !== gB ? (gA === "Other" ? 1 : gB === "Other" ? -1 : gA.localeCompare(gB)) : a.bossname.localeCompare(b.bossname);
+                    });
+                    renderList();
+                }
+            } catch(err) {
+                console.log("Retrying database check...");
+            }
             setTimeout(fetchBossData, 4000); 
         }
     }
