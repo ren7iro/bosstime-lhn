@@ -43,50 +43,44 @@
             margin: 8px 0; 
         }
 
+        /* Clean, single-line left column */
         .boss-info {
             display: flex;
-            flex-direction: column;
-            gap: 3px;
+            align-items: center;
         }
 
         .boss-name {
             font-weight: 500;
         }
 
-        .boss-meta {
+        /* Two-line stacked layout on the right */
+        .col-time { 
+            text-align: right; 
+            min-width: 110px; 
+            display: flex;
+            flex-direction: column;
+            align-items: flex-end;
+            gap: 2px;
+            font-size: 0.88rem;
+        }
+
+        .right-top {
+            font-weight: bold;
+        }
+
+        .right-bottom {
             font-size: 0.75rem;
             text-transform: uppercase;
             letter-spacing: 0.2px;
         }
 
-        /* Unified slate gray color rule for dead states */
+        /* Color Themes */
         .color-dead {
             color: #666666;
         }
 
-        /* Unified deep crimson color rule for alive states */
         .color-alive {
             color: #d32f2f;
-        }
-
-        .col-time { 
-            text-align: right; 
-            min-width: 95px; 
-            display: flex;
-            justify-content: flex-end;
-            align-items: center;
-            font-size: 0.88rem;
-        }
-
-        /* Clean matching fonts for right-side layouts without boxes */
-        .right-countdown {
-            font-weight: 500;
-        }
-
-        .right-alive { 
-            font-weight: bold; 
-            text-transform: uppercase;
-            letter-spacing: 0.5px;
         }
 
         .status-container {
@@ -195,6 +189,7 @@
             const row = document.createElement('div');
             row.className = 'row';
 
+            // Left side stays strictly clean and simple
             const infoCol = document.createElement('div');
             infoCol.className = 'boss-info';
             
@@ -203,27 +198,23 @@
             nameDiv.textContent = boss.bossname;
             infoCol.appendChild(nameDiv);
 
-            const metaDiv = document.createElement('div');
-            
-            const timeStr = `${String(targetTime.getHours()).padStart(2, '0')}:${String(targetTime.getMinutes()).padStart(2, '0')}`;
-            
+            // Right side container for two rows of dynamic information
             const timeCol = document.createElement('div');
             timeCol.className = 'col-time';
 
             if (diff <= 0) {
                 const elapsedMs = Math.abs(diff);
-                metaDiv.className = 'boss-meta color-alive';
-                // Clean tracking format option used here
-                metaDiv.textContent = `alive ${formatShortDuration(elapsedMs)} ago`;
-                
-                timeCol.innerHTML = `<span class="right-alive color-alive">ALIVE</span>`;
+                timeCol.innerHTML = `
+                    <span class="right-top color-alive">ALIVE</span>
+                    <span class="right-bottom color-alive">Alive: ${formatShortDuration(elapsedMs)}</span>
+                `;
             } else {
-                metaDiv.className = 'boss-meta color-dead';
-                metaDiv.textContent = `Next Spawn: ${timeStr}`;
-                
-                timeCol.innerHTML = `<span class="right-countdown color-dead">${formatFullDuration(diff)}</span>`;
+                const timeStr = `${String(targetTime.getHours()).padStart(2, '0')}:${String(targetTime.getMinutes()).padStart(2, '0')}`;
+                timeCol.innerHTML = `
+                    <span class="right-top color-dead">${timeStr}</span>
+                    <span class="right-bottom color-dead">${formatFullDuration(diff)}</span>
+                `;
             }
-            infoCol.appendChild(metaDiv);
 
             row.appendChild(infoCol);
             row.appendChild(timeCol);
