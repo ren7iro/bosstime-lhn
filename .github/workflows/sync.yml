@@ -7,7 +7,6 @@ on:
 jobs:
   build:
     runs-on: ubuntu-latest
-    # This blocks the warning by forcing Node 24 execution
     env:
       FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: 'true'
       
@@ -16,8 +15,14 @@ jobs:
         uses: actions/checkout@v4
 
       - name: Download Data
+        # This completely mimics a real Windows Chrome browser request
         run: |
-          curl -H "User-Agent: Mozilla/5.0 (Windows NT 10.0; Win64; x64)" https://laghaimnew.com/MAIN_/cache/boss_spawn.json -o boss_spawn.json
+          curl -H "User-Agent: Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36" \
+               -H "Accept: application/json, text/javascript, */*; q=0.01" \
+               -H "Accept-Language: en-US,en;q=0.9" \
+               -H "Referer: https://laghaimnew.com/" \
+               --compressed \
+               "https://laghaimnew.com/MAIN_/cache/boss_spawn.json" -o boss_spawn.json
 
       - name: Commit and Push Changes
         run: |
