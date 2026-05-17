@@ -41,17 +41,15 @@
             margin: 8px 0; 
         }
 
-        /* FIXED: This prevents the grid from resizing when switching modes */
         .col-time { 
             text-align: right; 
-            min-width: 90px; 
+            min-width: 95px; 
             display: flex;
             justify-content: flex-end;
             align-items: center;
             cursor: pointer; 
         }
 
-        /* STYLED: Light background with monospace font for stability */
         .countdown-mode { 
             font-family: "Courier New", Courier, monospace;
             font-weight: bold;
@@ -67,8 +65,8 @@
 
         .spawned { 
             color: #ff0000; 
-            font-weight: normal; 
-            font-style: normal; 
+            font-weight: bold; 
+            text-transform: uppercase;
         }
 
         .status-container {
@@ -102,13 +100,12 @@
 <div id="boss-list">
     <div class="status-container">
         <div class="loader"></div>
-        <div>checking boss data...</div>
+        <div>loading database...</div>
     </div>
 </div>
 
 <script>
     let bossData = []; 
-    // RESET: Always start with an empty set (no countdowns active) on refresh
     let activeCountdowns = new Set(); 
     let isFetching = false;
 
@@ -121,15 +118,11 @@
         if (isFetching) return; 
         isFetching = true;
 
-        const controller = new AbortController();
-        const timeoutId = setTimeout(() => controller.abort(), 8000);
-
         try {
-            // UPDATED: Using your private fast bridge in Singapore
-            const proxyUrl = "https://laghaim-proxy.launkk.workers.dev";
-
-            const res = await fetch(proxyUrl, { signal: controller.signal });
-            clearTimeout(timeoutId);
+            // Pulls directly from your repository with a cache breaker
+            const res = await fetch("./boss_spawn.json?t=" + Date.now());
+            if (!res.ok) throw new Error('Data not generated yet');
+            
             const data = await res.json();
             
             bossData = Object.values(data).sort((a, b) => {
@@ -141,8 +134,8 @@
             isFetching = false;
         } catch (e) {
             isFetching = false;
-            console.log("Retrying fetch...");
-            setTimeout(fetchBossData, 3000); 
+            console.log("Waiting for robot's first run...");
+            setTimeout(fetchBossData, 4000); 
         }
     }
 
@@ -181,7 +174,7 @@
             timeCol.className = 'col-time';
             
             if (diff <= 0) {
-                timeCol.innerHTML = `<span class="spawned">alive</span>`;
+                timeCol.innerHTML = `<span class="spawned">ALIVE</span>`;
             } else {
                 timeCol.onclick = () => toggleView(boss.bossname);
                 if (activeCountdowns.has(boss.bossname)) {
@@ -205,16 +198,10 @@
         container.appendChild(fragment);
     }
 
-    // Initialize
     fetchBossData();
-    
-    // Refresh data every 1 minute
     setInterval(fetchBossData, 60000); 
-    
-    // Update the visual list every 1 second
     setInterval(renderList, 1000);
 
-    // Auto-refresh when user switches back to the tab
     document.addEventListener("visibilitychange", () => {
         if (document.visibilityState === 'visible') fetchBossData();
     });
