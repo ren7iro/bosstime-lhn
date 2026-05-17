@@ -206,7 +206,7 @@
                 const elapsedMs = Math.abs(diff);
                 timeCol.innerHTML = `
                     <span class="right-top color-alive">ALIVE</span>
-                    <span class="right-bottom color-alive">Alive: ${formatShortDuration(elapsedMs)}</span>
+                    <span class="right-bottom color-alive">${formatShortDuration(elapsedMs)}ago</span>
                 `;
             } else {
                 const timeStr = `${String(targetTime.getHours()).padStart(2, '0')}:${String(targetTime.getMinutes()).padStart(2, '0')}`;
